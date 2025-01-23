@@ -1,0 +1,220 @@
+﻿{
+   "CodeGenerationMode": 4,
+   "ContextClassName": "dbGroupBContext",
+   "ContextNamespace": null,
+   "FilterSchemas": false,
+   "IncludeConnectionString": false,
+   "ModelNamespace": null,
+   "OutputContextPath": null,
+   "OutputPath": "Models",
+   "PreserveCasingWithRegex": true,
+   "ProjectRootNamespace": "prjGroupB",
+   "Schemas": null,
+   "SelectedHandlebarsLanguage": 2,
+   "SelectedToBeGenerated": 0,
+   "T4TemplatePath": null,
+   "Tables": [
+      {
+         "Name": "[dbo].[tAttractionCategories]",
+         "ObjectType": 0
+      },
+      {
+         "Name": "[dbo].[tAttractionComments]",
+         "ObjectType": 0
+      },
+      {
+         "Name": "[dbo].[tAttractionImages]",
+         "ObjectType": 0
+      },
+      {
+         "Name": "[dbo].[tAttractionJoinAttractionTag]",
+         "ObjectType": 0
+      },
+      {
+         "Name": "[dbo].[tAttractionRecommendations]",
+         "ObjectType": 0
+      },
+      {
+         "Name": "[dbo].[tAttractions]",
+         "ObjectType": 0
+      },
+      {
+         "Name": "[dbo].[tAttractionTags]",
+         "ObjectType": 0
+      },
+      {
+         "Name": "[dbo].[tAttractionTicketOrder]",
+         "ObjectType": 0
+      },
+      {
+         "Name": "[dbo].[tAttractionTickets]",
+         "ObjectType": 0
+      },
+      {
+         "Name": "[dbo].[tAttractionUserFavorites]",
+         "ObjectType": 0
+      },
+      {
+         "Name": "[dbo].[tChatRoom]",
+         "ObjectType": 0
+      },
+      {
+         "Name": "[dbo].[tEventCategories]",
+         "ObjectType": 0
+      },
+      {
+         "Name": "[dbo].[tEventCategoryMapping]",
+         "ObjectType": 0
+      },
+      {
+         "Name": "[dbo].[tEventContacts]",
+         "ObjectType": 0
+      },
+      {
+         "Name": "[dbo].[tEventFavorites]",
+         "ObjectType": 0
+      },
+      {
+         "Name": "[dbo].[tEventImage]",
+         "ObjectType": 0
+      },
+      {
+         "Name": "[dbo].[tEventLocations]",
+         "ObjectType": 0
+      },
+      {
+         "Name": "[dbo].[tEventLogs]",
+         "ObjectType": 0
+      },
+      {
+         "Name": "[dbo].[tEventPayments]",
+         "ObjectType": 0
+      },
+      {
+         "Name": "[dbo].[tEventRegistrationForm]",
+         "ObjectType": 0
+      },
+      {
+         "Name": "[dbo].[tEvents]",
+         "ObjectType": 0
+      },
+      {
+         "Name": "[dbo].[tEventSchedule]",
+         "ObjectType": 0
+      },
+      {
+         "Name": "[dbo].[tFriend]",
+         "ObjectType": 0
+      },
+      {
+         "Name": "[dbo].[tMessages]",
+         "ObjectType": 0
+      },
+      {
+         "Name": "[dbo].[tOrders]",
+         "ObjectType": 0
+      },
+      {
+         "Name": "[dbo].[tOrdersDetails]",
+         "ObjectType": 0
+      },
+      {
+         "Name": "[dbo].[tOrderStatus]",
+         "ObjectType": 0
+      },
+      {
+         "Name": "[dbo].[tOrderStatusHistory]",
+         "ObjectType": 0
+      },
+      {
+         "Name": "[dbo].[tPostAndTag]",
+         "ObjectType": 0
+      },
+      {
+         "Name": "[dbo].[tPostCategories]",
+         "ObjectType": 0
+      },
+      {
+         "Name": "[dbo].[tPostComments]",
+         "ObjectType": 0
+      },
+      {
+         "Name": "[dbo].[tPostImages]",
+         "ObjectType": 0
+      },
+      {
+         "Name": "[dbo].[tPosts]",
+         "ObjectType": 0
+      },
+      {
+         "Name": "[dbo].[tPostTags]",
+         "ObjectType": 0
+      },
+      {
+         "Name": "[dbo].[tPostViews]",
+         "ObjectType": 0
+      },
+      {
+         "Name": "[dbo].[tProduct]",
+         "ObjectType": 0
+      },
+      {
+         "Name": "[dbo].[tProductCategories]",
+         "ObjectType": 0
+      },
+      {
+         "Name": "[dbo].[tProductImage]",
+         "ObjectType": 0
+      },
+      {
+         "Name": "[dbo].[tProductReviews]",
+         "ObjectType": 0
+      },
+      {
+         "Name": "[dbo].[tRank]",
+         "ObjectType": 0
+      },
+      {
+         "Name": "[dbo].[tShoppingCart]",
+         "ObjectType": 0
+      },
+      {
+         "Name": "[dbo].[tShoppingCartItems]",
+         "ObjectType": 0
+      },
+      {
+         "Name": "[dbo].[tUser]",
+         "ObjectType": 0
+      },
+      {
+         "Name": "[dbo].[tWallet]",
+         "ObjectType": 0
+      }
+   ],
+   "UiHint": null,
+   "UncountableWords": null,
+   "UseAsyncStoredProcedureCalls": true,
+   "UseBoolPropertiesWithoutDefaultSql": false,
+   "UseDatabaseNames": false,
+   "UseDatabaseNamesForRoutines": true,
+   "UseDateOnlyTimeOnly": true,
+   "UseDbContextSplitting": false,
+   "UseDecimalDataAnnotationForSprocResult": true,
+   "UseFluentApiOnly": true,
+   "UseHandleBars": false,
+   "UseHierarchyId": false,
+   "UseInflector": true,
+   "UseLegacyPluralizer": false,
+   "UseManyToManyEntity": false,
+   "UseNoDefaultConstructor": false,
+   "UseNoNavigations": false,
+   "UseNoObjectFilter": false,
+   "UseNodaTime": false,
+   "UseNullableReferences": false,
+   "UsePrefixNavigationNaming": false,
+   "UseSchemaFolders": false,
+   "UseSchemaNamespaces": false,
+   "UseSpatial": false,
+   "UseT4": false,
+   "UseT4Split": false
+}

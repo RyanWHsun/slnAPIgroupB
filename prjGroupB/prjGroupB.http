@@ -1,0 +1,6 @@
+@prjGroupB_HostAddress = http://localhost:5062
+
+GET {{prjGroupB_HostAddress}}/weatherforecast/
+Accept: application/json
+
+###
