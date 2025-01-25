@@ -63,11 +63,10 @@ namespace prjGroupB.Controllers
 
         // PUT: api/TPosts/id
         [HttpPut("{id}")]
-        //[Authorize]
+        [Authorize]
         public async Task<string> PutPost(int id, TPostsDTO PostsDTO)
         {
-            //int userId = int.Parse(User.FindFirstValue(ClaimTypes.NameIdentifier));
-            int userId = 5;
+            int userId = int.Parse(User.FindFirstValue(ClaimTypes.NameIdentifier));
             TPost post = await _context.TPosts.FindAsync(id);
             if (post == null)
             {
@@ -100,11 +99,10 @@ namespace prjGroupB.Controllers
 
         // POST: api/TPosts
         [HttpPost]
-        //[Authorize]
+        [Authorize]
         public async Task<TPostsDTO> PostPost(TPostsDTO PostsDTO)
         {
-            //int userId = int.Parse(User.FindFirstValue(ClaimTypes.NameIdentifier));
-            int userId = 5;
+            int userId = int.Parse(User.FindFirstValue(ClaimTypes.NameIdentifier));
             TPost post = new TPost
             {
                 FUserId = userId,
@@ -122,11 +120,10 @@ namespace prjGroupB.Controllers
 
         // DELETE: api/TPosts/id
         [HttpDelete("{id}")]
-        //[Authorize]
+        [Authorize]
         public async Task<string> DeletePost(int id)
         {
-            //int userId = int.Parse(User.FindFirstValue(ClaimTypes.NameIdentifier));
-            int userId = 5;
+            int userId = int.Parse(User.FindFirstValue(ClaimTypes.NameIdentifier));
             TPost post = await _context.TPosts.FindAsync(id);
             if (post == null)
             {
