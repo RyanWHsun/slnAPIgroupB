@@ -24,7 +24,7 @@ namespace prjGroupB.Controllers {
 
         // GET: api/TAttractions
         [HttpGet]
-        public async Task<IEnumerable<TAttractionDTO>> GetTAttractionsInfo() {
+        public async Task<IEnumerable<TAttractionDTO>> GetTAttractions() {
             var tAttractions = await _context.TAttractions.Select(
                     attraction => new TAttractionDTO {
                         FAttractionId = attraction.FAttractionId,
@@ -79,6 +79,57 @@ namespace prjGroupB.Controllers {
                 FLatitude = attraction.FLatitude
             };
             return attractionDTO;
+        }
+
+        // GET: api/TAttractions/Search?keyword=A&pageSize=10&pageIndex=0
+        [HttpGet]
+        [Route("Search")]
+        public async Task<IEnumerable<TAttractionDTO>> GetAttractionByCondition([FromQuery] string keyword="", [FromQuery] int pageSize = 10, [FromQuery] int pageIndex = 0) {
+
+            // .Skip(pageSize * pageIndex):
+            // 跳過 pageSize *pageIndex 筆資料。
+            // 假設 pageIndex = 0，則跳過 10 * 0 = 0 筆，表示從第一筆開始。
+            // 假設 pageIndex = 1，則跳過 10 * 1 = 10 筆，表示從第 11 筆開始。
+
+            // .Take(pageSize):
+            // 取出最多 pageSize 筆資料。
+            // 在這裡，表示從跳過的筆數後開始，取出最多 10 筆資料。
+            var attractions = await _context.TAttractions
+                .Include(attraction => attraction.FCategory)
+                .Where(attraction => attraction.FAttractionName.ToLower().Contains(keyword.ToLower()))
+                .Skip(pageSize * pageIndex)
+                .Take(pageSize).ToListAsync();
+
+            // .Any() 是 LINQ 的一個方法，檢查集合中是否存在至少一個元素。
+            // 如果集合中有資料，.Any() 會回傳 true。
+            // 如果集合為空，.Any() 會回傳 false。
+            if (attractions == null || !attractions.Any()) {
+                return new List<TAttractionDTO>();
+            }
+
+            var attractionDTOs = attractions.Select(
+                attraction => new TAttractionDTO {
+                    FAttractionId = attraction.FAttractionId,
+                    FAttractionName = attraction.FAttractionName,
+                    FCategoryId = attraction.FCategoryId,
+                    FCategoryName = attraction.FCategory.FAttractionCategoryName,
+                    FDescription = attraction.FDescription,
+                    FRegion = attraction.FRegion,
+                    FAddress = attraction.FAddress,
+                    FStatus = attraction.FStatus,
+                    FOpeningTime = attraction.FOpeningTime,
+                    FClosingTime = attraction.FClosingTime,
+                    FPhoneNumber = attraction.FPhoneNumber,
+                    FWebsiteUrl = attraction.FWebsiteUrl,
+                    FCreatedDate = attraction.FCreatedDate,
+                    FUpdatedDate = attraction.FUpdatedDate,
+                    FTrafficInformation = attraction.FTrafficInformation,
+                    FLongitude = attraction.FLongitude,
+                    FLatitude = attraction.FLatitude
+                }
+            ).ToList();
+
+            return attractionDTOs;
         }
 
         // PUT: api/TAttractions/5
