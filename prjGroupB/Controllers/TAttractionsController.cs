@@ -25,7 +25,7 @@ namespace prjGroupB.Controllers {
         // GET: api/TAttractions
         [HttpGet]
         public async Task<IEnumerable<TAttractionDTO>> GetTAttractions() {
-            var tAttractions = await _context.TAttractions.Select(
+            var attractionDTOs = await _context.TAttractions.Select(
                     attraction => new TAttractionDTO {
                         FAttractionId = attraction.FAttractionId,
                         FAttractionName = attraction.FAttractionName,
@@ -46,7 +46,7 @@ namespace prjGroupB.Controllers {
                         FLatitude = attraction.FLatitude
                     }
                 ).ToListAsync();
-            return tAttractions;
+            return attractionDTOs;
         }
 
         // GET: api/TAttractions/5
@@ -84,7 +84,7 @@ namespace prjGroupB.Controllers {
         // GET: api/TAttractions/Search?keyword=A&pageSize=10&pageIndex=0
         [HttpGet]
         [Route("Search")]
-        public async Task<IEnumerable<TAttractionDTO>> GetAttractionByCondition([FromQuery] string keyword="", [FromQuery] int pageSize = 10, [FromQuery] int pageIndex = 0) {
+        public async Task<IEnumerable<TAttractionDTO>> GetAttractionByCondition([FromQuery] string keyword = "", [FromQuery] int pageSize = 10, [FromQuery] int pageIndex = 0) {
 
             // .Skip(pageSize * pageIndex):
             // 跳過 pageSize *pageIndex 筆資料。
