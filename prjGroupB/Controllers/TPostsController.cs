@@ -19,7 +19,6 @@ namespace prjGroupB.Controllers
     public class TPostsController : ControllerBase
     {
         private readonly dbGroupBContext _context;
-
         public TPostsController(dbGroupBContext context)
         {
             _context = context;
@@ -146,6 +145,26 @@ namespace prjGroupB.Controllers
             }
 
             return "刪除文章成功";
+        }
+
+
+        [HttpGet("GetImage/{id}")]
+        public async Task<IActionResult> GetPicture(int id)
+        {
+            int userId = int.Parse(User.FindFirstValue(ClaimTypes.NameIdentifier));
+            TPost post = await _context.TPosts.FindAsync(id);
+            if (post.FUserId != userId)
+            {
+                return Unauthorized("您沒有權限查看此文章的圖片");
+            }
+            var images = _context.TPostImages.Where(i => i.FPostId == id).Select(e=>e.FImage);
+            List<string> imageList = new List<string>();
+            foreach (byte[] image in images)
+            {
+                imageList.Add(Convert.ToBase64String(image));
+            }
+
+            return Ok(imageList);
         }
     }
 }
