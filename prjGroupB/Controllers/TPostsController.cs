@@ -19,6 +19,7 @@ namespace prjGroupB.Controllers
     public class TPostsController : ControllerBase
     {
         private readonly dbGroupBContext _context;
+
         public TPostsController(dbGroupBContext context)
         {
             _context = context;
@@ -63,7 +64,7 @@ namespace prjGroupB.Controllers
         // PUT: api/TPosts/id
         [HttpPut("{id}")]
         [Authorize]
-        public async Task<string> PutPost(int id, TPostsDTO PostsDTO)
+        public async Task<string> PutTPost(int id, TPostsDTO PostsDTO)
         {
             int userId = int.Parse(User.FindFirstValue(ClaimTypes.NameIdentifier));
             TPost post = await _context.TPosts.FindAsync(id);
@@ -71,18 +72,15 @@ namespace prjGroupB.Controllers
             {
                 return "查無文章";
             }
-
             if (post.FUserId != userId)
             {
                 return "你沒有權限修改此文章";
             }
-
             post.FTitle = PostsDTO.FTitle;
             post.FContent = PostsDTO.FContent;
             post.FUpdatedAt = DateTime.Now;
             post.FIsPublic = PostsDTO.FIsPublic;
             //post.FCategoryId = PostsDTO.FCategoryId;
-
             try
             {
                 _context.TPosts.Update(post);
@@ -92,14 +90,13 @@ namespace prjGroupB.Controllers
             {
                 return "修改資料庫失敗";
             }
-
             return "修改文章成功";
         }
 
         // POST: api/TPosts
         [HttpPost]
         [Authorize]
-        public async Task<TPostsDTO> PostPost(TPostsDTO PostsDTO)
+        public async Task<TPostsDTO> PostTPost(TPostsDTO PostsDTO)
         {
             int userId = int.Parse(User.FindFirstValue(ClaimTypes.NameIdentifier));
             TPost post = new TPost
@@ -111,7 +108,7 @@ namespace prjGroupB.Controllers
                 FIsPublic = PostsDTO.FIsPublic,
                 //FCategoryId = PostsDTO.FCategoryId
             };
-            _context.TPosts.Add(post);
+          _context.TPosts.Add(post);
             await _context.SaveChangesAsync();
             PostsDTO.FPostId = post.FPostId;
             return PostsDTO;
@@ -120,7 +117,7 @@ namespace prjGroupB.Controllers
         // DELETE: api/TPosts/id
         [HttpDelete("{id}")]
         [Authorize]
-        public async Task<string> DeletePost(int id)
+        public async Task<string> DeleteTPost(int id)
         {
             int userId = int.Parse(User.FindFirstValue(ClaimTypes.NameIdentifier));
             TPost post = await _context.TPosts.FindAsync(id);
@@ -128,12 +125,10 @@ namespace prjGroupB.Controllers
             {
                 return "查無文章";
             }
-
             if (post.FUserId != userId)
             {
                 return "你沒有權限刪除此文章";
             }
-
             try
             {
                 _context.TPosts.Remove(post);
@@ -143,28 +138,7 @@ namespace prjGroupB.Controllers
             {
                 return "刪除資料庫失敗";
             }
-
             return "刪除文章成功";
-        }
-
-
-        [HttpGet("GetImage/{id}")]
-        public async Task<IActionResult> GetPicture(int id)
-        {
-            int userId = int.Parse(User.FindFirstValue(ClaimTypes.NameIdentifier));
-            TPost post = await _context.TPosts.FindAsync(id);
-            if (post.FUserId != userId)
-            {
-                return Unauthorized("您沒有權限查看此文章的圖片");
-            }
-            var images = _context.TPostImages.Where(i => i.FPostId == id).Select(e=>e.FImage);
-            List<string> imageList = new List<string>();
-            foreach (byte[] image in images)
-            {
-                imageList.Add(Convert.ToBase64String(image));
-            }
-
-            return Ok(imageList);
         }
     }
 }
