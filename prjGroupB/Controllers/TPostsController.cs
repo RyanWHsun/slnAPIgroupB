@@ -108,7 +108,7 @@ namespace prjGroupB.Controllers
                 FIsPublic = PostsDTO.FIsPublic,
                 //FCategoryId = PostsDTO.FCategoryId
             };
-          _context.TPosts.Add(post);
+            _context.TPosts.Add(post);
             await _context.SaveChangesAsync();
             PostsDTO.FPostId = post.FPostId;
             return PostsDTO;
