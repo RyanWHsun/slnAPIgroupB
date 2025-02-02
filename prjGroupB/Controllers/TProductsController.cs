@@ -29,7 +29,7 @@ namespace prjGroupB.Controllers
 
         [HttpGet("myProduct")]
         [Authorize]
-        public async Task<IEnumerable<TProductDetailDTO>> GetMyProduct()
+        public async Task<IEnumerable<TProductListDTO>> GetMyProduct()
         {
             var userId = int.Parse(User.FindFirstValue(ClaimTypes.NameIdentifier));
 
@@ -38,25 +38,23 @@ namespace prjGroupB.Controllers
                 .Include(p=>p.TProductImages)
                 .ToListAsync();
 
-            var productDTO = myProduct.Select(p => new TProductDetailDTO
+            var productListDTO = myProduct.Select(p => new TProductListDTO
             {
-
+                FProductId = p.FProductId,
                 FProductName = p.FProductName,
                 FIsOnSales = p.FIsOnSales,
                 FProductDateAdd = p.FProductDateAdd,
                 FProductUpdated = p.FProductUpdated,
                 FStock = p.FStock,
                 FProductPrice = p.FProductPrice,
-                FImage = p.TProductImages
+                FProductCategoryId = p.FProductCategoryId,
+                FSingleImage = p.TProductImages
                 .OrderBy(img => img.FProductImageId)
-                .Take(1)
-                .Select(img => img.FImage != null ? ConvertToThumbnailBase64(img.FImage, 64, 64) : string.Empty)
-                .Where(base64 => !string.IsNullOrEmpty(base64)) // 過濾掉空字串
-                .ToArray()
+                .Select(img => img.FImage)
+                .FirstOrDefault(img => img != null) is byte[] firstImage ? ConvertToThumbnailBase64(firstImage, 64, 64) : string.Empty // 只對第一張有效圖片進行轉換
             });
-            return productDTO;
-        }
-      
+            return productListDTO;
+        }     
 
         
 
