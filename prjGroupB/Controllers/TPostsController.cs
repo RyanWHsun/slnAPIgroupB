@@ -26,8 +26,8 @@ namespace prjGroupB.Controllers
         }
 
         // GET: api/TPosts/GetAllPosts
-        [HttpGet("GetAllPosts")]
-        public async Task<IEnumerable<TPostsDTO>> GetAllPosts()
+        [HttpGet("GetPublicPosts")]
+        public async Task<IEnumerable<TPostsDTO>> GetPublicPosts()
         {
             return _context.TPosts.Where(t => t.FIsPublic == true).Select(e => new TPostsDTO
             {

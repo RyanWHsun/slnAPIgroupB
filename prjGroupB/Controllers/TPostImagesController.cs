@@ -23,9 +23,9 @@ namespace prjGroupB.Controllers
             _context = context;
         }
 
-        // GET: api/TPostImages/getPublicArticle/5
-        [HttpGet("getPublicArticle/{id}")]
-        public async Task<IActionResult> GetTPostImages(int id)
+        // GET: api/TPostImages/getPublicImages/5
+        [HttpGet("getPublicImages/{id}")]
+        public async Task<IActionResult> GetPublicImages(int id)
         {
             TPost post = await _context.TPosts.FindAsync(id);
             if (post.FIsPublic != true)
@@ -44,7 +44,7 @@ namespace prjGroupB.Controllers
         // GET: api/TPostImages/5
         [HttpGet("{id}")]
         [Authorize]
-        public async Task<IActionResult> GetTPostImage(int id)
+        public async Task<IActionResult> GetTPostImages(int id)
         {
             int userId = int.Parse(User.FindFirstValue(ClaimTypes.NameIdentifier));
             TPost post = await _context.TPosts.FindAsync(id);
