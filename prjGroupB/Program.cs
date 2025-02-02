@@ -1,4 +1,4 @@
-using Microsoft.AspNetCore.Authentication.JwtBearer;
+ï»¿using Microsoft.AspNetCore.Authentication.JwtBearer;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.IdentityModel.Tokens;
 using prjGroupB.Models;
@@ -6,14 +6,19 @@ using System.Text;
 
 var builder = WebApplication.CreateBuilder(args);
 
+builder.WebHost.ConfigureKestrel(options =>
+{
+    options.ListenAnyIP(5062); // é–‹å•Ÿ HTTP
+    options.ListenAnyIP(7112, listenOptions => listenOptions.UseHttps()); // é–‹å•Ÿ HTTPS
+});
+
 //Add services to the container.
 //Database
 builder.Services.AddDbContext<dbGroupBContext>(options =>
     options.UseSqlServer(builder.Configuration.GetConnectionString("dbGroupB")));
 
 //JWT
-//var secretKey = "YourSuperSecretKey"; // ½Ğ¨Ï¥Î§ó¦w¥şªº±KÆ_
-var secretKey = "b6t8fJH2WjwYgJt7XPTqVX37WYgKs8TZ";//¥ı°²³]ÀH¾÷¦r¦ê²Å
+var secretKey = "b6t8fJH2WjwYgJt7XPTqVX37WYgKs8TZ"; // å…ˆå‡è¨­éš¨æ©Ÿå­—ä¸²
 builder.Services.AddAuthentication(JwtBearerDefaults.AuthenticationScheme)
     .AddJwtBearer(options =>
     {
@@ -28,7 +33,7 @@ builder.Services.AddAuthentication(JwtBearerDefaults.AuthenticationScheme)
             IssuerSigningKey = new SymmetricSecurityKey(Encoding.UTF8.GetBytes(secretKey))
         };
 
-        // ±q Cookie ¤¤´£¨ú Token
+        // å¾ Cookie ä¸­æå– Token
         options.Events = new JwtBearerEvents
         {
             OnMessageReceived = context =>
@@ -42,15 +47,20 @@ builder.Services.AddAuthentication(JwtBearerDefaults.AuthenticationScheme)
         };
     });
 
-//CORS
-builder.Services.AddCors(options => {
-    options.AddDefaultPolicy(policy => {
-        policy.WithOrigins("http://localhost:4200").AllowCredentials().AllowAnyHeader().AllowAnyMethod();
+// âœ… ä¿®æ­£ CORS è¨­å®š
+const string MyAllowSpecificOrigins = "_myAllowSpecificOrigins";
+builder.Services.AddCors(options =>
+{
+    options.AddPolicy(MyAllowSpecificOrigins, policy =>
+    {
+        policy.WithOrigins("http://localhost:4200") // å…è¨± Angular å­˜å–
+              .AllowAnyHeader()
+              .AllowAnyMethod()
+              .AllowCredentials();
     });
 });
 
 builder.Services.AddControllers();
-// Learn more about configuring Swagger/OpenAPI at https://aka.ms/aspnetcore/swashbuckle
 builder.Services.AddEndpointsApiExplorer();
 builder.Services.AddSwaggerGen();
 
@@ -63,8 +73,8 @@ if (app.Environment.IsDevelopment())
     app.UseSwaggerUI();
 }
 
-//CORS
-app.UseCors();
+// âœ… ä½¿ç”¨å®šç¾©å¥½çš„ CORS åŸå‰‡
+app.UseCors(MyAllowSpecificOrigins);
 
 app.UseHttpsRedirection();
 
