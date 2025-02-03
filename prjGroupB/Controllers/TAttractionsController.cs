@@ -150,6 +150,14 @@ namespace prjGroupB.Controllers {
             attraction.FRegion = attractionDTO.FRegion;
             attraction.FAddress = attractionDTO.FAddress;
             attraction.FStatus = attractionDTO.FStatus;
+
+
+            //if (TimeOnly.TryParse(attractionDTO.FOpeningTime, out var result)) {
+            //    //attraction.FOpeningTime = fOpeningTime;
+            //}
+            //if (TimeOnly.TryParse(attractionDTO.FClosingTime, out var fClosingTime)) {
+            //    attraction.FClosingTime = fClosingTime;
+            //}
             attraction.FOpeningTime = attractionDTO.FOpeningTime;
             attraction.FClosingTime = attractionDTO.FClosingTime;
             attraction.FPhoneNumber = attractionDTO.FPhoneNumber;

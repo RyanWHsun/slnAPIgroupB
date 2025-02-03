@@ -27,6 +27,7 @@ namespace prjGroupB.Controllers {
                     FAttractionName = attractionImage.FAttraction.FAttractionName,
                     FAttractionImageId = attractionImage.FAttractionImageId,
                     FImage = attractionImage.FImage
+                    //FImage = Convert.ToBase64String(attractionImage.FImage)
                 }).ToListAsync();
             return attractionImageDTOs;
         }
@@ -52,6 +53,7 @@ namespace prjGroupB.Controllers {
                     FAttractionName = attractionImage.FAttraction.FAttractionName,
                     FAttractionImageId = attractionImage.FAttractionImageId,
                     FImage = attractionImage.FImage
+                    //FImage = Convert.ToBase64String(attractionImage.FImage) // 轉換 byte[] 為 Base64 字串
                 }
             ).ToList();
 
@@ -86,22 +88,53 @@ namespace prjGroupB.Controllers {
         // POST: api/TAttractionImages
         // To protect from overposting attacks, see https://go.microsoft.com/fwlink/?linkid=2123754
         [HttpPost]
-        public async Task<TAttractionImageDTO> PostTAttractionImage(TAttractionImageDTO attractionImageDTO) {
-            TAttractionImage attractionImage = new TAttractionImage {
-                FAttractionImageId = 0,
-                FAttractionId = attractionImageDTO.FAttractionId,
-                FImage = attractionImageDTO.FImage
-            };
+        public async Task<IActionResult> PostTAttractionImage([FromForm] int fAttractionId, [FromForm] List<IFormFile> fImages) {
+            if (fImages == null || fImages.Count == 0) {
+                return BadRequest("未選擇任何圖片");
+            }
 
-            _context.TAttractionImages.Add(attractionImage);
+            List<TAttractionImageDTO> uploadedImages = new List<TAttractionImageDTO>();
 
-            // 1. 新的記錄插入資料庫。
-            // 2. 資料庫生成並返回新的 FAttractionImageId。
-            // 3. EF 將新生成的 ID 更新到 attractionImage.FAttractionImageId。
-            await _context.SaveChangesAsync();
+            foreach (var image in fImages) {
+                using var memoryStream = new MemoryStream();
+                await image.CopyToAsync(memoryStream);
+                var imageData = memoryStream.ToArray();
 
-            attractionImageDTO.FAttractionImageId = attractionImage.FAttractionImageId;
-            return attractionImageDTO;
+                TAttractionImage attractionImage = new TAttractionImage {
+                    FAttractionId = fAttractionId,
+                    FImage = imageData
+                };
+
+                // 1. 新的記錄插入資料庫。
+                // 2. 資料庫生成並返回新的 FAttractionImageId。
+                // 3. EF 將新生成的 ID 更新到 attractionImage.FAttractionImageId。
+                _context.TAttractionImages.Add(attractionImage);
+                await _context.SaveChangesAsync();
+
+                uploadedImages.Add(new TAttractionImageDTO {
+                    FAttractionId = attractionImage.FAttractionId,
+                    FAttractionName = "",
+                    FAttractionImageId = attractionImage.FAttractionImageId,
+                    FImage = attractionImage.FImage
+                });
+                //TAttractionImage attractionImage = new TAttractionImage {
+                //    FAttractionImageId = 0,
+                //    FAttractionId = attractionImageDTO.FAttractionId,
+                //    FImage = attractionImageDTO.FImage
+                //    //FImage = Convert.FromBase64String(attractionImageDTO.FImage)
+                //};
+
+                //_context.TAttractionImages.Add(attractionImage);
+
+                //// 1. 新的記錄插入資料庫。
+                //// 2. 資料庫生成並返回新的 FAttractionImageId。
+                //// 3. EF 將新生成的 ID 更新到 attractionImage.FAttractionImageId。
+                //await _context.SaveChangesAsync();
+
+                //attractionImageDTO.FAttractionImageId = attractionImage.FAttractionImageId;
+                //return attractionImageDTO;
+            }
+            return Ok(uploadedImages);
         }
 
         // DELETE: api/TAttractionImages/5
