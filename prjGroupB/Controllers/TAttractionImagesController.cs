@@ -62,28 +62,28 @@ namespace prjGroupB.Controllers {
 
         // PUT: api/TAttractionImages/5
         // To protect from overposting attacks, see https://go.microsoft.com/fwlink/?linkid=2123754
-        [HttpPut("{id}")]
-        public async Task<IActionResult> PutTAttractionImage(int id, TAttractionImage tAttractionImage) {
-            if (id != tAttractionImage.FAttractionImageId) {
-                return BadRequest();
-            }
+        //[HttpPut("{id}")]
+        //public async Task<IActionResult> PutTAttractionImage(int id, TAttractionImage tAttractionImage) {
+        //    if (id != tAttractionImage.FAttractionImageId) {
+        //        return BadRequest();
+        //    }
 
-            _context.Entry(tAttractionImage).State = EntityState.Modified;
+        //    _context.Entry(tAttractionImage).State = EntityState.Modified;
 
-            try {
-                await _context.SaveChangesAsync();
-            }
-            catch (DbUpdateConcurrencyException) {
-                if (!TAttractionImageExists(id)) {
-                    return NotFound();
-                }
-                else {
-                    throw;
-                }
-            }
+        //    try {
+        //        await _context.SaveChangesAsync();
+        //    }
+        //    catch (DbUpdateConcurrencyException) {
+        //        if (!TAttractionImageExists(id)) {
+        //            return NotFound();
+        //        }
+        //        else {
+        //            throw;
+        //        }
+        //    }
 
-            return NoContent();
-        }
+        //    return NoContent();
+        //}
 
         // POST: api/TAttractionImages
         // To protect from overposting attacks, see https://go.microsoft.com/fwlink/?linkid=2123754
@@ -117,35 +117,24 @@ namespace prjGroupB.Controllers {
                     FAttractionImageId = attractionImage.FAttractionImageId,
                     FImage = attractionImage.FImage
                 });
-                //TAttractionImage attractionImage = new TAttractionImage {
-                //    FAttractionImageId = 0,
-                //    FAttractionId = attractionImageDTO.FAttractionId,
-                //    FImage = attractionImageDTO.FImage
-                //    //FImage = Convert.FromBase64String(attractionImageDTO.FImage)
-                //};
-
-                //_context.TAttractionImages.Add(attractionImage);
-
-                //// 1. 新的記錄插入資料庫。
-                //// 2. 資料庫生成並返回新的 FAttractionImageId。
-                //// 3. EF 將新生成的 ID 更新到 attractionImage.FAttractionImageId。
-                //await _context.SaveChangesAsync();
-
-                //attractionImageDTO.FAttractionImageId = attractionImage.FAttractionImageId;
-                //return attractionImageDTO;
             }
             return Ok(uploadedImages);
         }
 
         // DELETE: api/TAttractionImages/5
+        // id is the attraction id
         [HttpDelete("{id}")]
         public async Task<IActionResult> DeleteTAttractionImage(int id) {
-            var tAttractionImage = await _context.TAttractionImages.FindAsync(id);
-            if (tAttractionImage == null) {
+            var attractionImages = await _context.TAttractionImages
+                .Include(image => image.FAttraction)
+                .Where(image => image.FAttractionId == id).ToListAsync();
+
+            if (attractionImages == null || !attractionImages.Any()) {
                 return NotFound();
             }
 
-            _context.TAttractionImages.Remove(tAttractionImage);
+            // 刪除所有查詢到的圖片
+            _context.TAttractionImages.RemoveRange(attractionImages);
             await _context.SaveChangesAsync();
 
             return NoContent();
