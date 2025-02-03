@@ -3,6 +3,8 @@
         public int? FAttractionId { get; set; }
         public string? FAttractionName { get; set; }
         public int FAttractionImageId { get; set; }
+        //public string? FImage { get; set; }
+
         public byte[]? FImage { get; set; }
     }
 }
