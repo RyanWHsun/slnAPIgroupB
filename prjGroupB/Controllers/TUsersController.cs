@@ -5,6 +5,7 @@ using System.Threading.Tasks;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Mvc;
+using Microsoft.DotNet.Scaffolding.Shared.Messaging;
 using Microsoft.EntityFrameworkCore;
 using prjGroupB.DTO;
 using prjGroupB.Models;
@@ -35,7 +36,7 @@ namespace prjGroupB.Controllers
                 {
                     FUserId=emp.FUserId,
                     FUserName=emp.FUserName,
-                    FUserRankId=emp.FUserRankId,
+                    FUserRankId= (int)emp.FUserRankId,
                     FUserNickName=emp.FUserNickName,
                     FUserEmail=emp.FUserEmail,
                     FUserBirthday=emp.FUserBirthday,
@@ -43,7 +44,7 @@ namespace prjGroupB.Controllers
                     FUserSex=emp.FUserSex,
                     FUserAddress=emp.FUserAddress,
                     FUserImage=emp.FUserImage,
-                    FUserComeDate=emp.FUserComeDate,
+                    FUserComeDate= (DateTime)emp.FUserComeDate,
                     FUserPassword=emp.FUserPassword
                 }
                 );
@@ -62,7 +63,7 @@ namespace prjGroupB.Controllers
                 {
                     FUserId = tUser.FUserId,
                     FUserName = tUser.FUserName,
-                    FUserRankId = tUser.FUserRankId,
+                    FUserRankId = (int)tUser.FUserRankId,
                     FUserNickName = tUser.FUserNickName,
                     FUserEmail = tUser.FUserEmail,
                     FUserBirthday = tUser.FUserBirthday,
@@ -70,7 +71,7 @@ namespace prjGroupB.Controllers
                     FUserSex = tUser.FUserSex,
                     FUserAddress = tUser.FUserAddress,
                     FUserImage = tUser.FUserImage,
-                    FUserComeDate = tUser.FUserComeDate,
+                    FUserComeDate = (DateTime)tUser.FUserComeDate,
                     FUserPassword = tUser.FUserPassword
                 };
             }
@@ -95,7 +96,7 @@ namespace prjGroupB.Controllers
             {
                 return "修改失敗";
             }
-            user.FUserId = userDTO.FUserId;
+            user.FUserId = (int)userDTO.FUserId;
             user.FUserName = userDTO.FUserName;
             user.FUserRankId = userDTO.FUserRankId;
             user.FUserNickName = userDTO.FUserNickName;
@@ -130,32 +131,60 @@ namespace prjGroupB.Controllers
         // POST: api/TUsers
         // To protect from overposting attacks, see https://go.microsoft.com/fwlink/?linkid=2123754
         [HttpPost]
-        public async Task<string> PostTUser([FromBody]TUserDTO userDTO)
+        public async Task<IActionResult> PostTUser([FromBody] TUserDTO userDTO)
         {
-            TUser user = new TUser
+            try
             {
-                FUserId = userDTO.FUserId,
-                FUserName = userDTO.FUserName,
-                FUserRankId = userDTO.FUserRankId,
-                FUserNickName = userDTO.FUserNickName,
-                FUserEmail = userDTO.FUserEmail,
-                FUserBirthday = userDTO.FUserBirthday,
-                FUserPhone = userDTO.FUserPhone,
-                FUserSex = userDTO.FUserSex,
-                FUserAddress = userDTO.FUserAddress,
-                FUserImage = userDTO.FUserImage,
-                FUserComeDate = userDTO.FUserComeDate,
-                FUserPassword = userDTO.FUserPassword
+                // 檢查 userDTO 是否為 null
+                if (userDTO == null)
+                {
+                    return BadRequest("請求內容不可為空");
+                }
 
-            };
+                // 確保必要欄位不為空
+                if (string.IsNullOrEmpty(userDTO.FUserName) || string.IsNullOrEmpty(userDTO.FUserEmail))
+                {
+                    return BadRequest("缺少必要欄位: 用戶名稱或電子郵件");
+                }
 
-            _context.TUsers.Add(user);
-            await _context.SaveChangesAsync();
-            return $"註冊成功，會員編號:{user.FUserId}";
+                // 檢查 FUserRankId，確保它不為 null
+                if (userDTO.FUserRankId == 0)
+                {
+                    return BadRequest("FUserRankId 不能為 0");
+                }
+
+                TUser user = new TUser
+                {
+                    FUserName = userDTO.FUserName,
+                    FUserRankId = userDTO.FUserRankId,
+                    FUserNickName = userDTO.FUserNickName,
+                    FUserEmail = userDTO.FUserEmail,
+                    FUserBirthday = userDTO.FUserBirthday,
+                    FUserPhone = userDTO.FUserPhone,
+                    FUserSex = userDTO.FUserSex,
+                    FUserAddress = userDTO.FUserAddress,
+                    FUserImage = userDTO.FUserImage,
+                    FUserComeDate = userDTO.FUserComeDate,
+                    FUserPassword = userDTO.FUserPassword
+                };
+                // 嘗試寫入資料庫
+                _context.TUsers.Add(user);
+                await _context.SaveChangesAsync();
+                return Ok(new { message = $"註冊成功，會員編號:{user.FUserId}" });
+            }
+            catch (Exception ex)
+            {
+                Console.WriteLine($"發生錯誤: {ex.Message}"); // 顯示錯誤訊息在後端 Console
+                return StatusCode(500, $"伺服器錯誤: {ex.Message}");
+            }
         }
 
-        // DELETE: api/TUsers/5
-        [HttpDelete("{id}")]
+
+
+
+
+            // DELETE: api/TUsers/5
+            [HttpDelete("{id}")]
         public async Task<IActionResult> DeleteTUser(int id)
         {
             var tUser = await _context.TUsers.FindAsync(id);
