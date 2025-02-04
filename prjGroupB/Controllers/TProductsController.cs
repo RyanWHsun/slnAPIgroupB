@@ -124,7 +124,7 @@ namespace prjGroupB.Controllers
 
         // GET: api/TProducts/5
         [HttpGet("{id}")]
-        public async Task<ActionResult<TProductDetailDTO>> GetTProductDetail(int id)
+        public async Task<TProductDetailDTO> GetTProductDetail(int id)
         {
             var productDetail = await _context.TProducts
                 .Include(p => p.TProductImages)
@@ -132,7 +132,7 @@ namespace prjGroupB.Controllers
 
             if (productDetail == null)
             {
-                return NotFound();
+                return null;
             }
             TProductDetailDTO productDetailDTO = new TProductDetailDTO
             {
@@ -150,21 +150,67 @@ namespace prjGroupB.Controllers
                     .Select(img => Convert.ToBase64String(img.FImage)) // 將 byte[] 轉為 Base64
                     .ToArray() // 轉為陣列
             };
-            return Ok(productDetailDTO);
+            return productDetailDTO;
         }
 
 
         // PUT: api/TProducts/5
         // To protect from overposting attacks, see https://go.microsoft.com/fwlink/?linkid=2123754
         [HttpPut("{id}")]
-        public async Task<IActionResult> PutTProduct(int id, TProduct tProduct)
+        public async Task<string> PutTProduct(int id,TProductDetailDTO productDetailDTO)
         {
-            if (id != tProduct.FProductId)
+            if (id != productDetailDTO.FProductId)
             {
-                return BadRequest();
+                return "商品修改失敗!";
             }
 
-            _context.Entry(tProduct).State = EntityState.Modified;
+            // 找到對應的商品
+            TProduct? product = await _context.TProducts
+                .Include(p => p.TProductImages) // 確保載入圖片
+                .FirstOrDefaultAsync(p => p.FProductId == id);
+            if (product == null)
+            {
+                return "商品不存在!";
+            }
+            product.FProductName=productDetailDTO.FProductName;
+            product.FProductPrice = productDetailDTO.FProductPrice;
+            product.FProductDescription = productDetailDTO.FProductDescription;
+            product.FIsOnSales = productDetailDTO.FIsOnSales;
+            product.FStock = productDetailDTO.FStock;
+            product.FProductUpdated=DateTime.Now;
+            _context.Entry(product).State = EntityState.Modified;
+
+            // 更新圖片邏輯
+            if (productDetailDTO.FImage != null && productDetailDTO.FImage.Length > 0)
+            {
+                for (int i = 0; i < productDetailDTO.FImage.Length; i++)
+                {
+                    string base64Image = productDetailDTO.FImage[i];
+
+                    if (!string.IsNullOrEmpty(base64Image))
+                    {
+                        // 取得現有圖片
+                        var existingImage = product.TProductImages.OrderBy(img => img.FProductImageId).Skip(i).FirstOrDefault();
+
+                        if (existingImage != null)
+                        {
+                            // 更新現有圖片
+                            existingImage.FImage = Convert.FromBase64String(base64Image);
+                            _context.Entry(existingImage).State = EntityState.Modified;
+                        }
+                        else
+                        {
+                            // 如果沒有對應的圖片，就新增一張
+                            var newImage = new TProductImage
+                            {
+                                FProductId = product.FProductId,
+                                FImage = Convert.FromBase64String(base64Image)
+                            };
+                            _context.TProductImages.Add(newImage);
+                        }
+                    }
+                }
+            }
 
             try
             {
@@ -174,26 +220,56 @@ namespace prjGroupB.Controllers
             {
                 if (!TProductExists(id))
                 {
-                    return NotFound();
+                    return "商品修改失敗!";
                 }
                 else
                 {
                     throw;
                 }
             }
-
-            return NoContent();
+            return "商品修改成功!";
         }
 
         // POST: api/TProducts
         // To protect from overposting attacks, see https://go.microsoft.com/fwlink/?linkid=2123754
         [HttpPost]
-        public async Task<ActionResult<TProduct>> PostTProduct(TProduct tProduct)
+        public async Task<string> PostTProduct(TProductDetailDTO productDetailDTO)
         {
-            _context.TProducts.Add(tProduct);
-            await _context.SaveChangesAsync();
+            //建立商品
+            TProduct product = new TProduct
+            {
+                FUserId = int.Parse(User.FindFirstValue(ClaimTypes.NameIdentifier)),
+                FProductName = productDetailDTO.FProductName,
+                FProductCategoryId = productDetailDTO.FProductCategoryId,
+                FProductDescription = productDetailDTO.FProductDescription,
+                FProductPrice = productDetailDTO.FProductPrice,
+                FIsOnSales = true,
+                FProductDateAdd = DateTime.Now,
+                FProductUpdated = null,
+                FStock = productDetailDTO.FStock,
+            };
+            _context.TProducts.Add(product);
+            await _context.SaveChangesAsync(); //先儲存以取得id
 
-            return CreatedAtAction("GetTProduct", new { id = tProduct.FProductId }, tProduct);
+            //新增圖片
+            if (productDetailDTO.FImage != null && productDetailDTO.FImage.Length > 0) 
+            {
+                foreach (var base64Image in productDetailDTO.FImage) 
+                {
+                    if (!string.IsNullOrEmpty(base64Image))
+                    {
+                        var productImage = new TProductImage
+                        {
+                            FProductId = product.FProductId,
+                            FImage = Convert.FromBase64String(base64Image), // 轉換 Base64 為 byte[]
+                        };
+                        _context.TProductImages.Add(productImage);
+                    }
+                }
+            }
+            await _context.SaveChangesAsync(); //儲存圖片
+
+            return "商品新增成功!";
         }
 
         // DELETE: api/TProducts/5
