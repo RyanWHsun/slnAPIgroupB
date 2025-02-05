@@ -233,12 +233,16 @@ namespace prjGroupB.Controllers
         // POST: api/TProducts
         // To protect from overposting attacks, see https://go.microsoft.com/fwlink/?linkid=2123754
         [HttpPost]
+        [Authorize]
         public async Task<string> PostTProduct(TProductDetailDTO productDetailDTO)
         {
+            // 取得目前登入的 UserId
+            var userId = int.Parse(User.FindFirstValue(ClaimTypes.NameIdentifier));
+
             //建立商品
             TProduct product = new TProduct
             {
-                FUserId = int.Parse(User.FindFirstValue(ClaimTypes.NameIdentifier)),
+                FUserId = userId,
                 FProductName = productDetailDTO.FProductName,
                 FProductCategoryId = productDetailDTO.FProductCategoryId,
                 FProductDescription = productDetailDTO.FProductDescription,
