@@ -86,9 +86,9 @@ namespace prjGroupB.Controllers
                     FUserNickName = p.FUser.FUserNickName,
                     FUserImage = p.FUser.FUserImage != null ? ConvertToThumbnailBase64(p.FUser.FUserImage, 64, 64) : null,
                     FImage = p.TProductImages
-                            .OrderBy(img => img.FProductImageId)
-                            .Select(img => img.FImage != null ? Convert.ToBase64String(img.FImage) : null) // 將 byte[] 轉為 Base64
-                            .FirstOrDefault()// 取第一張圖片
+                             .OrderBy(img => img.FProductImageId) // 確保順序
+                             .Select(img => img.FImage) // 只取得 byte[] 圖片資料
+                             .FirstOrDefault() is byte[] firstImage? ConvertToThumbnailBase64(firstImage,200,200) : null 
             });
 
             return allProducts;
@@ -234,7 +234,7 @@ namespace prjGroupB.Controllers
         // To protect from overposting attacks, see https://go.microsoft.com/fwlink/?linkid=2123754
         [HttpPost]
         [Authorize]
-        public async Task<string> PostTProduct(TProductDetailDTO productDetailDTO)
+        public async Task<IActionResult> PostTProduct(TProductDetailDTO productDetailDTO)
         {
             // 取得目前登入的 UserId
             var userId = int.Parse(User.FindFirstValue(ClaimTypes.NameIdentifier));
@@ -273,7 +273,8 @@ namespace prjGroupB.Controllers
             }
             await _context.SaveChangesAsync(); //儲存圖片
 
-            return "商品新增成功!";
+            return Ok(new { message = "商品新增成功!" });
+
         }
 
         // DELETE: api/TProducts/5
