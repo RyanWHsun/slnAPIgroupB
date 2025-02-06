@@ -123,12 +123,43 @@ namespace prjGroupB.Controllers
         //5.將內存流轉換為 Base64 字串並返回。
 
         // GET: api/TProducts/5
+        [HttpGet("myProductWithUserId")]
+        [Authorize]
+        public async Task<ActionResult<TProductDetailDTO>> GetTProductWithUserId(int id)
+        {
+            var userId = int.Parse(User.FindFirstValue(ClaimTypes.NameIdentifier));//取得用戶ID
+            var product = await _context.TProducts
+                .Include(p => p.TProductImages)
+                .FirstOrDefaultAsync(p=>p.FProductId == id && p.FUserId==userId); //確保商品屬於該用戶
+
+            if (product == null)
+            {
+                return Unauthorized("您無權存取或變更此商品");
+            }
+            var productDTO = new TProductDetailDTO
+            {
+                FProductId = product.FProductId,
+                FProductCategoryId = product.FProductCategoryId,
+                FProductName = product.FProductName,
+                FProductPrice = product.FProductPrice,
+                FProductDescription = product.FProductDescription,
+                FIsOnSales = product.FIsOnSales,
+                FStock = product.FStock,
+                FImage = product.TProductImages
+                    .OrderBy(img => img.FProductImageId) // 確保圖片順序一致
+                    .Select(img => Convert.ToBase64String(img.FImage)) // 將 byte[] 轉為 Base64
+                    .ToArray() // 轉為陣列
+            };
+            return Ok(productDTO);
+        }
+
+        // GET: api/TProducts/5
         [HttpGet("{id}")]
-        public async Task<TProductDetailDTO> GetTProductDetail(int id)
+        public async Task<TProductDetailDTO> GetTProduct(int id)
         {
             var productDetail = await _context.TProducts
                 .Include(p => p.TProductImages)
-                .FirstOrDefaultAsync(p=>p.FProductId == id);
+                .FirstOrDefaultAsync(p => p.FProductId == id);
 
             if (productDetail == null)
             {
@@ -152,7 +183,6 @@ namespace prjGroupB.Controllers
             };
             return productDetailDTO;
         }
-
 
         // PUT: api/TProducts/5
         // To protect from overposting attacks, see https://go.microsoft.com/fwlink/?linkid=2123754
@@ -183,35 +213,40 @@ namespace prjGroupB.Controllers
             // 更新圖片邏輯
             if (productDetailDTO.FImage != null && productDetailDTO.FImage.Length > 0)
             {
+                var existingImage = product.TProductImages.OrderBy(img => img.FProductImageId).ToList();
                 for (int i = 0; i < productDetailDTO.FImage.Length; i++)
                 {
                     string base64Image = productDetailDTO.FImage[i];
 
                     if (!string.IsNullOrEmpty(base64Image))
                     {
-                        // 取得現有圖片
-                        var existingImage = product.TProductImages.OrderBy(img => img.FProductImageId).Skip(i).FirstOrDefault();
-
-                        if (existingImage != null)
+                        byte[] imageBytes = Convert.FromBase64String(base64Image);
+                        
+                        // 取得現有圖片                       
+                        if (i<existingImage.Count)
                         {
                             // 更新現有圖片
-                            existingImage.FImage = Convert.FromBase64String(base64Image);
-                            _context.Entry(existingImage).State = EntityState.Modified;
+                            existingImage[i].FImage = Convert.FromBase64String(base64Image);
+                            _context.Entry(existingImage[i]).State = EntityState.Modified;
                         }
                         else
                         {
-                            // 如果沒有對應的圖片，就新增一張
+                            // 新增新圖片
                             var newImage = new TProductImage
                             {
                                 FProductId = product.FProductId,
-                                FImage = Convert.FromBase64String(base64Image)
+                                FImage = imageBytes
                             };
                             _context.TProductImages.Add(newImage);
                         }
                     }
                 }
+                if (existingImage.Count > productDetailDTO.FImage.Length) 
+                { 
+                    var imagesToRemove=existingImage.Skip(productDetailDTO.FImage.Length).ToList();
+                    _context.TProductImages.RemoveRange(imagesToRemove);
+                }
             }
-
             try
             {
                 await _context.SaveChangesAsync();
@@ -247,7 +282,7 @@ namespace prjGroupB.Controllers
                 FProductCategoryId = productDetailDTO.FProductCategoryId,
                 FProductDescription = productDetailDTO.FProductDescription,
                 FProductPrice = productDetailDTO.FProductPrice,
-                FIsOnSales = true,
+                FIsOnSales = productDetailDTO.FIsOnSales,
                 FProductDateAdd = DateTime.Now,
                 FProductUpdated = null,
                 FStock = productDetailDTO.FStock,
@@ -281,16 +316,28 @@ namespace prjGroupB.Controllers
         [HttpDelete("{id}")]
         public async Task<IActionResult> DeleteTProduct(int id)
         {
-            var tProduct = await _context.TProducts.FindAsync(id);
-            if (tProduct == null)
+            var product = await _context.TProducts
+                .Include(p => p.TProductImages)
+                .FirstOrDefaultAsync(p=>p.FProductId==id);
+
+            if (product == null)
             {
-                return NotFound();
+                return NotFound(new { message = "刪除商品失敗!" });
             }
-
-            _context.TProducts.Remove(tProduct);
-            await _context.SaveChangesAsync();
-
-            return NoContent();
+            try
+            {
+                if(product.TProductImages != null && product.TProductImages.Any())
+                {
+                    _context.TProductImages.RemoveRange(product.TProductImages); ;
+                }
+                _context.TProducts.Remove(product);
+                await _context.SaveChangesAsync();
+                return Ok(new { message = "刪除商品成功!" });
+            }
+            catch(DbUpdateException ex)
+            {
+                return BadRequest(new { message = "刪除商品失敗，可能因為與其他資料有關聯!", error = ex.Message });
+            }
         }
 
         private bool TProductExists(int id)

@@ -25,14 +25,16 @@ namespace prjGroupB.Controllers
         [HttpGet]
         public async Task<IEnumerable<TProductCategoryDTO>> GetTProductCategories()
         {
-            return _context.TProductCategories.Select(c => new TProductCategoryDTO
+            return await _context.TProductCategories.Select(c => new TProductCategoryDTO
             {
                 FCategoryName=c.FCategoryName,
                 FProductCategoryId=c.FProductCategoryId,
-                ProductCount = _context.TProducts.Count(p=>p.FProductCategoryId==c.FProductCategoryId)
-            });
+                ProductCount = _context.TProducts
+                    .Count(p=>p.FProductCategoryId==c.FProductCategoryId && p.FIsOnSales == true)
+            })
+                .ToListAsync();
         }
-            
+        
         //    // GET: api/TProductCategories/5
         //    [HttpGet("{id}")]
         //    public async Task<ActionResult<TProductCategory>> GetTProductCategory(int id)
