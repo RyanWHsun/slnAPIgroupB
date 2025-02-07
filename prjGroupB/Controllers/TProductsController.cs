@@ -265,6 +265,46 @@ namespace prjGroupB.Controllers
             return Ok(new { message = "商品修改成功!" });
         }
 
+
+        [HttpPut("batchUpdateStatus")]
+        [Authorize]
+        public async Task<IActionResult> BatchUpdateStatus([FromBody] List<int> productIds)
+        {
+            if(productIds ==null || productIds.Count == 0)
+            {
+                return BadRequest(new {message="未提供商品ID"});
+            }
+            //查找符合商品
+            var userId = int.Parse(User.FindFirstValue(ClaimTypes.NameIdentifier));
+            // 確保所有請求修改的產品都屬於當前使用者
+            var userProducts = await _context.TProducts
+                .Where(p => productIds.Contains(p.FProductId) && p.FUserId==userId)
+                .ToListAsync();
+            if (userProducts.Count != productIds.Count)
+            {
+                return Unauthorized(new { message = "部分或全部商品無權修改" });
+            }
+
+            //切換狀態
+            foreach (var product in userProducts) 
+            {
+                product.FIsOnSales = !product.FIsOnSales;
+                _context.Entry(product).State = EntityState.Modified;
+            }
+            try
+            {
+                await _context.SaveChangesAsync();
+                return Ok(new { message = "狀態更新成功!", updatedCount = userProducts.Count });
+            }
+            catch (Exception ex) 
+            {
+                return StatusCode(500, new { message = "批次修改失敗!", error = ex.Message });
+            }
+        }
+
+
+
+
         // POST: api/TProducts
         // To protect from overposting attacks, see https://go.microsoft.com/fwlink/?linkid=2123754
         [HttpPost]
@@ -339,7 +379,7 @@ namespace prjGroupB.Controllers
                 return BadRequest(new { message = "刪除商品失敗，可能因為與其他資料有關聯!", error = ex.Message });
             }
         }
-
+      
         private bool TProductExists(int id)
         {
             return _context.TProducts.Any(e => e.FProductId == id);
