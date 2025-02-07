@@ -187,11 +187,11 @@ namespace prjGroupB.Controllers
         // PUT: api/TProducts/5
         // To protect from overposting attacks, see https://go.microsoft.com/fwlink/?linkid=2123754
         [HttpPut("{id}")]
-        public async Task<string> PutTProduct(int id,TProductDetailDTO productDetailDTO)
+        public async Task<IActionResult> PutTProduct(int id,TProductDetailDTO productDetailDTO)
         {
             if (id != productDetailDTO.FProductId)
             {
-                return "商品修改失敗!";
+                return BadRequest(new { message = "商品修改失敗!" });
             }
 
             // 找到對應的商品
@@ -200,7 +200,7 @@ namespace prjGroupB.Controllers
                 .FirstOrDefaultAsync(p => p.FProductId == id);
             if (product == null)
             {
-                return "商品不存在!";
+                return NotFound(new { message = "商品不存在!" });
             }
             product.FProductName=productDetailDTO.FProductName;
             product.FProductPrice = productDetailDTO.FProductPrice;
@@ -255,14 +255,14 @@ namespace prjGroupB.Controllers
             {
                 if (!TProductExists(id))
                 {
-                    return "商品修改失敗!";
+                    return NotFound(new { message = "商品不存在!" });
                 }
                 else
                 {
                     throw;
                 }
             }
-            return "商品修改成功!";
+            return Ok(new { message = "商品修改成功!" });
         }
 
         // POST: api/TProducts
