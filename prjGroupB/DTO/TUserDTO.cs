@@ -18,12 +18,12 @@
 
         public string? FUserPhone { get; set; }
 
-        public string FUserEmail { get; set; }
+        public string? FUserEmail { get; set; }
         public string? FUserAddress { get; set; }
 
         public DateTime FUserComeDate { get; set; }
 
-        public string FUserPassword { get; set; }
+        public string? FUserPassword { get; set; }
 
     }
 }

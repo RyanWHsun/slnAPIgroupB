@@ -2,6 +2,8 @@
 using System.Collections.Generic;
 using System.Linq;
 using System.Security.Claims;
+using System.Security.Cryptography;
+using System.Text;
 using System.Threading.Tasks;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Http;
@@ -96,9 +98,23 @@ namespace prjGroupB.Controllers
         [Authorize]
         public async Task<IActionResult> PutTUser(int id, [FromBody]TUserDTO userDTO)
         {
-            if (id != userDTO.FUserId)
+            //尋找登入者ID
+            var userId = int.Parse(User.FindFirstValue(ClaimTypes.NameIdentifier));
+
+            //// 查詢指定 ID 的用戶
+            //var tUser = await _context.TUsers
+            //    .Where(p => p.FUserId == userId).FirstOrDefaultAsync();
+
+            //// 若找不到用戶，返回 404
+            //if (tUser == null)
+            //{
+            //    return NotFound(new { message = "用戶不存在或無權限存取" });
+            //}
+
+
+            if (id != userId)
             {
-                return BadRequest(new { message = "修改紀錄失敗 ，ID 不匹配" });
+                return BadRequest(new { message = "修改紀錄失敗 ，ID 不匹配，id:",id,userId });
             }
 
             // 查找要更新的用戶
@@ -117,12 +133,16 @@ namespace prjGroupB.Controllers
             user.FUserName = userDTO.FUserName;
             user.FUserRankId = userDTO.FUserRankId;
             user.FUserNickName = userDTO.FUserNickName;
-            user.FUserEmail = userDTO.FUserEmail;
             user.FUserBirthday = userDTO.FUserBirthday;
             user.FUserPhone = userDTO.FUserPhone;
             user.FUserSex = userDTO.FUserSex;
             user.FUserAddress = userDTO.FUserAddress;
 
+            // 如果提供新密碼，則進行雜湊
+            if (!string.IsNullOrEmpty(userDTO.FUserPassword))
+            {
+                user.FUserPassword = HashPassword(userDTO.FUserPassword);
+            }
 
             _context.Entry(user).State = EntityState.Modified;
 
@@ -164,7 +184,7 @@ namespace prjGroupB.Controllers
                 FUserAddress = userDTO.FUserAddress,
                 FUserImage = userImage,
                 FUserComeDate = DateTime.Now,
-                FUserPassword = userDTO.FUserPassword
+                FUserPassword = HashPassword(userDTO.FUserPassword)
             };
 
             // 嘗試寫入資料庫
@@ -174,10 +194,17 @@ namespace prjGroupB.Controllers
             }
 
 
+        //密碼雜湊
+        private string HashPassword(string password)
+        {
+            using (SHA256 sha256 = SHA256.Create())
+            {
+                byte[] hashedBytes = sha256.ComputeHash(Encoding.UTF8.GetBytes(password));
+                return BitConverter.ToString(hashedBytes).Replace("-", "").ToLower();
+            }
+        }
 
-
-
-            // DELETE: api/TUsers/5
+        // DELETE: api/TUsers/5
         //    [HttpDelete("{id}")]
         //public async Task<IActionResult> DeleteTUser(int id)
         //{
