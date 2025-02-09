@@ -8,41 +8,35 @@ using System.IdentityModel.Tokens.Jwt;
 using System.Security.Claims;
 using System.Text;
 
-namespace prjGroupB.Controllers
-{
+namespace prjGroupB.Controllers {
     [Route("api/[controller]")]
     [ApiController]
-    public class AuthController : ControllerBase
-    {
+    public class AuthController : ControllerBase {
         private readonly dbGroupBContext _context;
         private readonly string _secretKey = "b6t8fJH2WjwYgJt7XPTqVX37WYgKs8TZ";
 
-        public AuthController(dbGroupBContext context)
-        {
+        public AuthController(dbGroupBContext context) {
             _context = context;
         }
 
         [HttpPost("login")]
-        public IActionResult Login([FromBody] UserLoginRequest request)
-        {
-            var user = _context.TUsers.SingleOrDefault(u => u.FUserEmail == request.Email &&u.FUserPassword== request.Password);
+        public IActionResult Login([FromBody] UserLoginRequest request) {
+            var user = _context.TUsers.SingleOrDefault(u => u.FUserEmail == request.Email && u.FUserPassword == request.Password);
 
             //JWT token
             var token = GenerateJwtToken(user);
 
             //HttpOnly Cookie
-            Response.Cookies.Append("jwt_token", token, new CookieOptions
-            {
+            Response.Cookies.Append("jwt_token", token, new CookieOptions {
                 HttpOnly = true,
                 Secure = true,
                 SameSite = SameSiteMode.None,
                 Expires = DateTime.UtcNow.AddHours(24)
             });
-            return Ok(new { Message = "Login successful", token=token});
+            return Ok(new { Message = "Login successful", token = token });
         }
 
-        private string GenerateJwtToken(TUser user)
-        {
+        private string GenerateJwtToken(TUser user) {
             var key = new SymmetricSecurityKey(Encoding.UTF8.GetBytes(_secretKey));
             var creds = new SigningCredentials(key, SecurityAlgorithms.HmacSha256);
 
@@ -61,5 +55,37 @@ namespace prjGroupB.Controllers
 
             return new JwtSecurityTokenHandler().WriteToken(token);
         }
+
+        // GET: api/Auth/userInfo
+        // Writer: Li-Chun Chen
+        [HttpGet("userInfo")]
+        public IActionResult GetUserInfo() {
+            var token = Request.Cookies["jwt_token"];
+            if (string.IsNullOrEmpty(token)) {
+                return Unauthorized(new { Message = "No token found" });
+            }
+
+            var tokenHandler = new JwtSecurityTokenHandler();
+            var key = new SymmetricSecurityKey(Encoding.UTF8.GetBytes(_secretKey));
+
+            try {
+                var claimsPrincipal = tokenHandler.ValidateToken(token, new TokenValidationParameters {
+                    ValidateIssuerSigningKey = true,
+                    IssuerSigningKey = key,
+                    ValidateIssuer = false,
+                    ValidateAudience = false,
+                    ValidateLifetime = true
+                }, out var validatedToken);
+
+                var userId = claimsPrincipal.FindFirst(ClaimTypes.NameIdentifier)?.Value;
+                var userName = claimsPrincipal.FindFirst(ClaimTypes.Name)?.Value;
+
+                return Ok(new { userId, userName });
+            }
+            catch {
+                return Unauthorized(new { Message = "Invalid token" });
+            }
+        }
+        // Writer: Li-Chun Chen
     }
 }

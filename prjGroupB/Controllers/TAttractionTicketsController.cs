@@ -1,4 +1,5 @@
 ﻿using System;
+using System.Collections;
 using System.Collections.Generic;
 using System.Linq;
 using System.Net.Sockets;
@@ -22,17 +23,70 @@ namespace prjGroupB.Controllers {
         // GET: api/TAttractionTickets
         [HttpGet]
         public async Task<IEnumerable<TAttractionTicketDTO>> GetTAttractionTickets() {
-            var attractionTicketDTOs = await _context.TAttractionTickets.Select(
-                attractionTicket => new TAttractionTicketDTO {
-                    FAttractionTicketId = attractionTicket.FAttractionTicketId,
-                    FAttractionId = attractionTicket.FAttractionId,
-                    FAttractionName = attractionTicket.FAttraction.FAttractionName,
-                    FTicketType = attractionTicket.FTicketType,
-                    FPrice = attractionTicket.FPrice,
-                    FDiscountInformation = attractionTicket.FDiscountInformation,
-                    FCreatedDate = attractionTicket.FCreatedDate
+            var attractionTicketDTOs = await _context.TAttractionTickets
+                .Select(ticket => new TAttractionTicketDTO {
+                    FAttractionTicketId = ticket.FAttractionTicketId,
+                    FAttractionId = ticket.FAttractionId,
+                    FAttractionName = ticket.FAttraction.FAttractionName,
+                    FTicketType = ticket.FTicketType,
+                    FPrice = ticket.FPrice,
+                    FDiscountInformation = ticket.FDiscountInformation,
+                    FCreatedDate = ticket.FCreatedDate
                 }
-            ).ToListAsync();
+                ).ToListAsync();
+            return attractionTicketDTOs;
+        }
+
+        // GET: api/TAttractionTickets/Search?isDistinct=true&pageSize=9&pageIndex=0
+        [HttpGet]
+        [Route("Search")]
+        public async Task<IEnumerable<TAttractionTicketDTO>> GetTAttractionTickets(bool isDistinct, int pageSize = 9, int pageIndex = 0) {
+            var tickets = new List<TAttractionTicket>();
+            // 先載入所有資料到記憶體
+            var allTickets = await _context.TAttractionTickets
+                .Include(ticket => ticket.FAttraction) // 確保包含關聯屬性
+                .ToListAsync();
+
+            if (isDistinct) {
+                // 在記憶體中分組並選取每組的第一筆
+                tickets = allTickets
+                    .GroupBy(ticket => ticket.FAttractionId) // 按 FAttractionId 分組
+                    .Select(group => group.First()) // 每組取第一筆
+                    .ToList();
+            }
+            else {
+                tickets = allTickets;
+            }
+            // .Skip(pageSize * pageIndex):
+            // 跳過 pageSize *pageIndex 筆資料。
+            // 假設 pageIndex = 0，則跳過 10 * 0 = 0 筆，表示從第一筆開始。
+            // 假設 pageIndex = 1，則跳過 10 * 1 = 10 筆，表示從第 11 筆開始。
+
+            // .Take(pageSize):
+            // 取出最多 pageSize 筆資料。
+            // 在這裡，表示從跳過的筆數後開始，取出最多 10 筆資料。
+            tickets = tickets
+                .Skip(pageSize * pageIndex)
+                .Take(pageSize).ToList();
+
+            // .Any() 是 LINQ 的一個方法，檢查集合中是否存在至少一個元素。
+            // 如果集合中有資料，.Any() 會回傳 true。
+            // 如果集合為空，.Any() 會回傳 false。
+            if (tickets == null || !tickets.Any()) {
+                return new List<TAttractionTicketDTO>();
+            }
+
+            var attractionTicketDTOs = tickets.Select(
+                ticket => new TAttractionTicketDTO {
+                    FAttractionTicketId = ticket.FAttractionTicketId,
+                    FAttractionId = ticket.FAttractionId,
+                    FAttractionName = ticket.FAttraction.FAttractionName,
+                    FTicketType = ticket.FTicketType,
+                    FPrice = ticket.FPrice,
+                    FDiscountInformation = ticket.FDiscountInformation,
+                    FCreatedDate = ticket.FCreatedDate
+                }
+            ).ToList();
             return attractionTicketDTOs;
         }
 
@@ -41,8 +95,8 @@ namespace prjGroupB.Controllers {
         [HttpGet("{id}")]
         public async Task<IEnumerable<TAttractionTicketDTO>> GetTAttractionTicket(int id) {
             var attractionTickets = await _context.TAttractionTickets
-                .Include(ticket=>ticket.FAttraction)
-                .Where(ticket=>ticket.FAttractionId == id)
+                .Include(ticket => ticket.FAttraction)
+                .Where(ticket => ticket.FAttractionId == id)
                 .ToListAsync();
 
             // .Any() 是 LINQ 的一個方法，檢查集合中是否存在至少一個元素。
@@ -65,6 +119,22 @@ namespace prjGroupB.Controllers {
             ).ToList();
 
             return attractionTicketDTOs;
+        }
+
+        // GET: api/TAttractionTickets/{ticketId}/types
+        // id is the attraction id
+        [HttpGet("{attractionId}/types")]
+        public async Task<List<string>> GetTAttractionTicketTypeById(int attractionId) {
+            List<TAttractionTicket> attractionTickets = await _context.TAttractionTickets.Where(ticket=>ticket.FAttractionId== attractionId).ToListAsync();
+            if (attractionTickets == null || !attractionTickets.Any()) {
+                return [];
+            }
+
+            List<string> ticketTypes = new List<string>();
+            foreach(var ticket in attractionTickets) {
+                ticketTypes.Add(ticket.FTicketType);
+            }
+            return ticketTypes;
         }
 
         // PUT: api/TAttractionTickets/5
