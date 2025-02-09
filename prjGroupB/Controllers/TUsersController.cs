@@ -1,6 +1,7 @@
 ﻿using System;
 using System.Collections.Generic;
 using System.Linq;
+using System.Security.Claims;
 using System.Threading.Tasks;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Http;
@@ -25,7 +26,7 @@ namespace prjGroupB.Controllers
 
 
 
-        //查詢
+        //查詢全部
         // GET: api/TUsers
         [HttpGet]
         [Authorize]
@@ -43,9 +44,9 @@ namespace prjGroupB.Controllers
                     FUserPhone=emp.FUserPhone,
                     FUserSex=emp.FUserSex,
                     FUserAddress=emp.FUserAddress,
-                    FUserImage=emp.FUserImage,
-                    FUserComeDate= (DateTime)emp.FUserComeDate,
-                    FUserPassword=emp.FUserPassword
+                    FUserImage = emp.FUserImage != null ? Convert.ToBase64String(emp.FUserImage) : null,
+                    FUserComeDate= (DateTime)emp.FUserComeDate
+                    //FUserPassword=emp.FUserPassword
                 }
                 );
         }
@@ -53,14 +54,24 @@ namespace prjGroupB.Controllers
         // GET: api/TUsers/5
         [HttpGet("{id}")]
         [Authorize]
-        public async Task<TUserDTO> GetTUser(int id)
+        public async Task<ActionResult<TUserDTO>> GetTUser(int id)
         {
-            var tUser = await _context.TUsers.FindAsync(id);
-            TUserDTO userDTO = null;
-            if (tUser != null)
+
+            //尋找登入者ID
+            var userId = int.Parse(User.FindFirstValue(ClaimTypes.NameIdentifier));
+
+            // 查詢指定 ID 的用戶
+            var tUser = await _context.TUsers
+                .Where(p => p.FUserId == userId).FirstOrDefaultAsync();
+
+            // 若找不到用戶，返回 404
+            if (tUser == null)
             {
-                userDTO = new TUserDTO
-                {
+                return NotFound(new { message = "用戶不存在或無權限存取" });
+            }
+
+            var userDTO = new TUserDTO
+            {
                     FUserId = tUser.FUserId,
                     FUserName = tUser.FUserName,
                     FUserRankId = (int)tUser.FUserRankId,
@@ -70,12 +81,10 @@ namespace prjGroupB.Controllers
                     FUserPhone = tUser.FUserPhone,
                     FUserSex = tUser.FUserSex,
                     FUserAddress = tUser.FUserAddress,
-                    FUserImage = tUser.FUserImage,
-                    FUserComeDate = (DateTime)tUser.FUserComeDate,
-                    FUserPassword = tUser.FUserPassword
+                    FUserImage = tUser.FUserImage != null ? Convert.ToBase64String(tUser.FUserImage) : null,// 將 FUserImage 轉為 Base64 字串
+                    FUserComeDate = (DateTime)tUser.FUserComeDate
+                    //FUserPassword = tUser.FUserPassword
                 };
-            }
-
             return userDTO;
         }
 
@@ -85,18 +94,26 @@ namespace prjGroupB.Controllers
         // To protect from overposting attacks, see https://go.microsoft.com/fwlink/?linkid=2123754
         [HttpPut("{id}")]
         [Authorize]
-        public async Task<string> PutTUser(int id, [FromBody]TUserDTO userDTO)
+        public async Task<IActionResult> PutTUser(int id, [FromBody]TUserDTO userDTO)
         {
             if (id != userDTO.FUserId)
             {
-                return "修改紀錄失敗";
+                return BadRequest(new { message = "修改紀錄失敗 ，ID 不匹配" });
             }
+
+            // 查找要更新的用戶
             TUser user = await _context.TUsers.FindAsync(id);
+
             if (user == null)
             {
-                return "修改失敗";
+                return BadRequest(new { message = "修改失敗，找不到用戶" });
             }
-            user.FUserId = (int)userDTO.FUserId;
+
+            // 轉換 FUserImage（Base64 -> byte[]）
+            if (!string.IsNullOrEmpty(userDTO.FUserImage))
+            {
+                user.FUserImage = Convert.FromBase64String(userDTO.FUserImage);
+            }
             user.FUserName = userDTO.FUserName;
             user.FUserRankId = userDTO.FUserRankId;
             user.FUserNickName = userDTO.FUserNickName;
@@ -105,9 +122,6 @@ namespace prjGroupB.Controllers
             user.FUserPhone = userDTO.FUserPhone;
             user.FUserSex = userDTO.FUserSex;
             user.FUserAddress = userDTO.FUserAddress;
-            user.FUserImage = userDTO.FUserImage;
-            user.FUserComeDate = userDTO.FUserComeDate;
-            user.FUserPassword = userDTO.FUserPassword;
 
 
             _context.Entry(user).State = EntityState.Modified;
@@ -118,12 +132,9 @@ namespace prjGroupB.Controllers
             }
             catch (DbUpdateConcurrencyException)
             {
-               
-                    return "修改失敗";
-                
+                return BadRequest(new { message = "修改失敗" });
             }
-
-            return "修改成功";
+            return Ok(new { message = "修改成功" });
         }
 
 
@@ -133,71 +144,54 @@ namespace prjGroupB.Controllers
         [HttpPost]
         public async Task<IActionResult> PostTUser([FromBody] TUserDTO userDTO)
         {
-            try
+            // 轉換 Base64 字串為 byte[]，確保圖片能夠正確存入資料庫
+            byte[] userImage = string.IsNullOrEmpty(userDTO.FUserImage)
+                ? null : Convert.FromBase64String(userDTO.FUserImage);
+
+            // 密碼進行 SHA256 雜湊（安全性提高）
+            //string hashedPassword = hashedPassword(userDTO.FUserPassword);
+
+
+            TUser user = new TUser
             {
-                // 檢查 userDTO 是否為 null
-                if (userDTO == null)
-                {
-                    return BadRequest("請求內容不可為空");
-                }
+                FUserName = userDTO.FUserName,
+                FUserRankId = userDTO.FUserRankId,
+                FUserNickName = userDTO.FUserNickName,
+                FUserEmail = userDTO.FUserEmail,
+                FUserBirthday = userDTO.FUserBirthday,
+                FUserPhone = userDTO.FUserPhone,
+                FUserSex = userDTO.FUserSex,
+                FUserAddress = userDTO.FUserAddress,
+                FUserImage = userImage,
+                FUserComeDate = DateTime.Now,
+                FUserPassword = userDTO.FUserPassword
+            };
 
-                // 確保必要欄位不為空
-                if (string.IsNullOrEmpty(userDTO.FUserName) || string.IsNullOrEmpty(userDTO.FUserEmail))
-                {
-                    return BadRequest("缺少必要欄位: 用戶名稱或電子郵件");
-                }
-
-                // 檢查 FUserRankId，確保它不為 null
-                if (userDTO.FUserRankId == 0)
-                {
-                    return BadRequest("FUserRankId 不能為 0");
-                }
-
-                TUser user = new TUser
-                {
-                    FUserName = userDTO.FUserName,
-                    FUserRankId = userDTO.FUserRankId,
-                    FUserNickName = userDTO.FUserNickName,
-                    FUserEmail = userDTO.FUserEmail,
-                    FUserBirthday = userDTO.FUserBirthday,
-                    FUserPhone = userDTO.FUserPhone,
-                    FUserSex = userDTO.FUserSex,
-                    FUserAddress = userDTO.FUserAddress,
-                    FUserImage = userDTO.FUserImage,
-                    FUserComeDate = userDTO.FUserComeDate,
-                    FUserPassword = userDTO.FUserPassword
-                };
-                // 嘗試寫入資料庫
-                _context.TUsers.Add(user);
+            // 嘗試寫入資料庫
+            _context.TUsers.Add(user);
                 await _context.SaveChangesAsync();
-                return Ok(new { message = $"註冊成功，會員編號:{user.FUserId}" });
+            return Ok(new { message = "註冊成功，會員編號:", userId = user.FUserId });
             }
-            catch (Exception ex)
-            {
-                Console.WriteLine($"發生錯誤: {ex.Message}"); // 顯示錯誤訊息在後端 Console
-                return StatusCode(500, $"伺服器錯誤: {ex.Message}");
-            }
-        }
 
 
 
 
 
             // DELETE: api/TUsers/5
-            [HttpDelete("{id}")]
-        public async Task<IActionResult> DeleteTUser(int id)
-        {
-            var tUser = await _context.TUsers.FindAsync(id);
-            if (tUser == null)
-            {
-                return NotFound();
-            }
+        //    [HttpDelete("{id}")]
+        //public async Task<IActionResult> DeleteTUser(int id)
+        //{
+        //    var tUser = await _context.TUsers.FindAsync(id);
+        //    if (tUser == null)
+        //    {
+        //        return NotFound();
+        //    }
 
-            _context.TUsers.Remove(tUser);
-            await _context.SaveChangesAsync();
+        //    _context.TUsers.Remove(tUser);
+        //    await _context.SaveChangesAsync();
 
-            return NoContent();
-        }
+        //    return NoContent();
+        //}
 
         private bool TUserExists(int id)
         {

@@ -43,14 +43,31 @@ namespace prjGroupB.Controllers
 
         private string GenerateJwtToken(TUser user)
         {
+            //改的
+            if (user == null)
+            {
+                throw new ArgumentNullException(nameof(user), "無法生成 JWT，因為 user 為 null");
+            }
+            
+
+
+
             var key = new SymmetricSecurityKey(Encoding.UTF8.GetBytes(_secretKey));
             var creds = new SigningCredentials(key, SecurityAlgorithms.HmacSha256);
 
-            var claims = new[]
-            {
-            new Claim(ClaimTypes.NameIdentifier, user.FUserId.ToString()),
-            new Claim(ClaimTypes.Name, user.FUserName)
-            };
+            //改的
+            var claims = new List<Claim>
+    {
+        new Claim(ClaimTypes.NameIdentifier, user.FUserId.ToString()),
+        new Claim(ClaimTypes.Name, user.FUserName ?? "未知用戶") // 避免 FUserName 為 null
+    };
+
+
+            //var claims = new[]
+            //{
+            //new Claim(ClaimTypes.NameIdentifier, user.FUserId.ToString()),
+            //new Claim(ClaimTypes.Name, user.FUserName)
+            //};
 
             var token = new JwtSecurityToken(
                 issuer: "http://localhost:7112",

@@ -8,7 +8,7 @@
 
         public string FUserName { get; set; }
 
-        public byte[]? FUserImage { get; set; }
+        public string? FUserImage { get; set; }
 
         public string FUserNickName { get; set; }
 
