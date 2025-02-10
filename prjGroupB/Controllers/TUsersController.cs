@@ -96,55 +96,51 @@ namespace prjGroupB.Controllers
         // To protect from overposting attacks, see https://go.microsoft.com/fwlink/?linkid=2123754
         [HttpPut("{id}")]
         [Authorize]
-        public async Task<IActionResult> PutTUser(int id, [FromBody]TUserDTO userDTO)
+        public async Task<IActionResult> PutTUser( [FromBody]TUserDTO userDTO)
         {
             //尋找登入者ID
             var userId = int.Parse(User.FindFirstValue(ClaimTypes.NameIdentifier));
 
-            //// 查詢指定 ID 的用戶
-            //var tUser = await _context.TUsers
-            //    .Where(p => p.FUserId == userId).FirstOrDefaultAsync();
+            // 查詢指定 ID 的用戶
+            var tUser = await _context.TUsers
+                .Where(p => p.FUserId == userId).FirstOrDefaultAsync();
 
-            //// 若找不到用戶，返回 404
-            //if (tUser == null)
-            //{
-            //    return NotFound(new { message = "用戶不存在或無權限存取" });
-            //}
-
-
-            if (id != userId)
+            // 若找不到用戶，返回 404
+            if (tUser == null)
             {
-                return BadRequest(new { message = "修改紀錄失敗 ，ID 不匹配，id:",id,userId });
+                return NotFound(new { message = "用戶不存在或無權限存取" });
             }
+
 
             // 查找要更新的用戶
-            TUser user = await _context.TUsers.FindAsync(id);
+            //TUser user = await _context.TUsers.FindAsync(id);
 
-            if (user == null)
-            {
-                return BadRequest(new { message = "修改失敗，找不到用戶" });
-            }
+            //if (user == null)
+            //{
+            //    return BadRequest(new { message = "修改失敗，找不到用戶" });
+            //}
 
             // 轉換 FUserImage（Base64 -> byte[]）
             if (!string.IsNullOrEmpty(userDTO.FUserImage))
             {
-                user.FUserImage = Convert.FromBase64String(userDTO.FUserImage);
+                tUser.FUserImage = Convert.FromBase64String(userDTO.FUserImage);
             }
-            user.FUserName = userDTO.FUserName;
-            user.FUserRankId = userDTO.FUserRankId;
-            user.FUserNickName = userDTO.FUserNickName;
-            user.FUserBirthday = userDTO.FUserBirthday;
-            user.FUserPhone = userDTO.FUserPhone;
-            user.FUserSex = userDTO.FUserSex;
-            user.FUserAddress = userDTO.FUserAddress;
+            tUser.FUserName = userDTO.FUserName;
+            tUser.FUserRankId = userDTO.FUserRankId;
+            tUser.FUserNickName = userDTO.FUserNickName;
+            tUser.FUserBirthday = userDTO.FUserBirthday;
+            tUser.FUserPhone = userDTO.FUserPhone;
+            tUser.FUserSex = userDTO.FUserSex;
+            tUser.FUserAddress = userDTO.FUserAddress;
 
             // 如果提供新密碼，則進行雜湊
             if (!string.IsNullOrEmpty(userDTO.FUserPassword))
             {
-                user.FUserPassword = HashPassword(userDTO.FUserPassword);
+                tUser.FUserPassword = HashPassword(userDTO.FUserPassword);
             }
 
-            _context.Entry(user).State = EntityState.Modified;
+            //設定為已修改狀態
+            _context.Entry(tUser).State = EntityState.Modified;
 
             try
             {
@@ -164,12 +160,16 @@ namespace prjGroupB.Controllers
         [HttpPost]
         public async Task<IActionResult> PostTUser([FromBody] TUserDTO userDTO)
         {
+            //擋住已註冊的Email
+            bool haveEmail=await _context.TUsers.AnyAsync(u=>u.FUserEmail==userDTO.FUserEmail);
+            if (haveEmail) {
+                return BadRequest(new { message = "該Email已被使用" });
+            }
+
+
             // 轉換 Base64 字串為 byte[]，確保圖片能夠正確存入資料庫
             byte[] userImage = string.IsNullOrEmpty(userDTO.FUserImage)
                 ? null : Convert.FromBase64String(userDTO.FUserImage);
-
-            // 密碼進行 SHA256 雜湊（安全性提高）
-            //string hashedPassword = hashedPassword(userDTO.FUserPassword);
 
 
             TUser user = new TUser

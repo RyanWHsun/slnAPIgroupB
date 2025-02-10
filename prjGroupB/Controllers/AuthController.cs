@@ -25,7 +25,8 @@ namespace prjGroupB.Controllers
         [HttpPost("login")]
         public IActionResult Login([FromBody] UserLoginRequest request)
         {
-            var user = _context.TUsers.SingleOrDefault(u => u.FUserEmail == request.Email &&u.FUserPassword== request.Password);
+            //先驗證Email//再驗證密碼
+            var user = _context.TUsers.SingleOrDefault(u => u.FUserEmail == request.Email && u.FUserPassword== request.Password);
 
             //JWT token
             var token = GenerateJwtToken(user);
