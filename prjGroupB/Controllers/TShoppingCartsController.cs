@@ -28,6 +28,7 @@ namespace prjGroupB.Controllers
         }
 
         // GET: api/TShoppingCarts
+        // 顯示購物車品目
         [HttpGet]       
         public async Task<IActionResult> GetShoppingCart()
         {
@@ -131,66 +132,9 @@ namespace prjGroupB.Controllers
             }
         }
 
-
-        // GET: api/TShoppingCarts/5
-        //[HttpGet("{id}")]
-        //public async Task<ActionResult<TShoppingCart>> GetTShoppingCart(int id)
-        //{
-        //    var tShoppingCart = await _context.TShoppingCarts.FindAsync(id);
-
-        //    if (tShoppingCart == null)
-        //    {
-        //        return NotFound();
-        //    }
-
-        //    return tShoppingCart;
-        //}
-
-        // PUT: api/TShoppingCarts/5
-        // To protect from overposting attacks, see https://go.microsoft.com/fwlink/?linkid=2123754
-        [HttpPut("{id}")]
-        public async Task<IActionResult> PutTShoppingCart(int id, TShoppingCart tShoppingCart)
-        {
-            if (id != tShoppingCart.FCartId)
-            {
-                return BadRequest();
-            }
-
-            _context.Entry(tShoppingCart).State = EntityState.Modified;
-
-            try
-            {
-                await _context.SaveChangesAsync();
-            }
-            catch (DbUpdateConcurrencyException)
-            {
-                if (!TShoppingCartExists(id))
-                {
-                    return NotFound();
-                }
-                else
-                {
-                    throw;
-                }
-            }
-
-            return NoContent();
-        }
-
-
-        //[HttpPost]
-        //public async Task<ActionResult<TShoppingCart>> PostTShoppingCart(TShoppingCart tShoppingCart)
-        //{
-        //    _context.TShoppingCarts.Add(tShoppingCart);
-        //    await _context.SaveChangesAsync();
-
-        //    return CreatedAtAction("GetTShoppingCart", new { id = tShoppingCart.FCartId }, tShoppingCart);
-        //}
-
-
-        //POST: api/TShoppingCarts
+        //POST: api/TShoppingCarts/addProductToCart
         //To protect from overposting attacks, see https://go.microsoft.com/fwlink/?linkid=2123754
-        //增加商品
+        //增加商品至購物車
         [HttpPost("addProductToCart")]
         public async Task<IActionResult> addProductToCart([FromBody] addProductToCartDTO cartDTO)
         {
@@ -259,28 +203,124 @@ namespace prjGroupB.Controllers
             return Ok(new { message = "商品已成功加入購物車" });      
         }
 
-
-
-
-        // DELETE: api/TShoppingCarts/5
-        [HttpDelete("{id}")]
-        public async Task<IActionResult> DeleteTShoppingCart(int id)
+        // GET: api/TShoppingCarts/ItemCount
+        //計算購物車數量
+        [HttpGet("ItemCount")]
+        public async Task <IActionResult> GetCartItemCount()
         {
-            var tShoppingCart = await _context.TShoppingCarts.FindAsync(id);
-            if (tShoppingCart == null)
+            var userId = int.Parse(User.FindFirstValue(ClaimTypes.NameIdentifier));
+
+            int count = await _context.TShoppingCartItems
+                .Where(i => _context.TShoppingCarts.Any(c => c.FCartId == i.FCartId && c.FUserId == userId))
+                .CountAsync();  
+
+            return Ok(new { count });
+        }
+
+        // 單筆刪除
+        // DELETE: api/TShoppingCarts/remove/5
+        [HttpDelete("remove/{cartItemId}")]
+        public async Task<IActionResult> RemoveCartItem(int cartItemId)
+        {
+            var userId = int.Parse(User.FindFirstValue(ClaimTypes.NameIdentifier));
+
+            var cartItem = await _context.TShoppingCartItems
+                .FirstOrDefaultAsync(i => i.FCartItemId == cartItemId);
+            if (cartItem == null)
             {
-                return NotFound();
+                return NotFound(new { message = "購物車項目不存在" });
+            }
+            _context.TShoppingCartItems.Remove(cartItem);
+            await _context.SaveChangesAsync();
+            return Ok(new { message = "購物車項目已移除" });
+        }
+
+        // 批次刪除
+        // DELETE: api/TShoppingCarts/removeBatch
+        [HttpPost("removeBatch")]
+        public async Task<IActionResult> RemoveCartItems([FromBody] List<int> cartItemIds)
+        {
+            var userId = int.Parse(User.FindFirstValue(ClaimTypes.NameIdentifier));
+
+            if (cartItemIds == null || !cartItemIds.Any())
+            {
+                return BadRequest(new { message = "請選擇至少一個項目來刪除" });
             }
 
-            _context.TShoppingCarts.Remove(tShoppingCart);
-            await _context.SaveChangesAsync();
+            var cartItems = await _context.TShoppingCartItems
+                .Where(i=>cartItemIds.Contains(i.FCartItemId))
+                .ToListAsync();
 
-            return NoContent();
+            if (!cartItemIds.Any())
+            {
+                return NotFound(new { message = "購物車項目不存在" });
+            }
+            _context.TShoppingCartItems.RemoveRange(cartItems);
+            await _context.SaveChangesAsync();
+            return Ok(new { message = "購物車項目已移除" });
         }
+
 
         private bool TShoppingCartExists(int id)
         {
             return _context.TShoppingCarts.Any(e => e.FCartId == id);
         }
+
+        //如下為原始的碼
+        // GET: api/TShoppingCarts/5
+        //[HttpGet("{id}")]
+        //public async Task<ActionResult<TShoppingCart>> GetTShoppingCart(int id)
+        //{
+        //    var tShoppingCart = await _context.TShoppingCarts.FindAsync(id);
+
+        //    if (tShoppingCart == null)
+        //    {
+        //        return NotFound();
+        //    }
+
+        //    return tShoppingCart;
+        //}
+
+        // PUT: api/TShoppingCarts/5
+        // To protect from overposting attacks, see https://go.microsoft.com/fwlink/?linkid=2123754
+        //[HttpPut("{id}")]
+        //public async Task<IActionResult> PutTShoppingCart(int id, TShoppingCart tShoppingCart)
+        //{
+        //    if (id != tShoppingCart.FCartId)
+        //    {
+        //        return BadRequest();
+        //    }
+
+        //    _context.Entry(tShoppingCart).State = EntityState.Modified;
+
+        //    try
+        //    {
+        //        await _context.SaveChangesAsync();
+        //    }
+        //    catch (DbUpdateConcurrencyException)
+        //    {
+        //        if (!TShoppingCartExists(id))
+        //        {
+        //            return NotFound();
+        //        }
+        //        else
+        //        {
+        //            throw;
+        //        }
+        //    }
+
+        //    return NoContent();
+        //}
+
+
+        //[HttpPost]
+        //public async Task<ActionResult<TShoppingCart>> PostTShoppingCart(TShoppingCart tShoppingCart)
+        //{
+        //    _context.TShoppingCarts.Add(tShoppingCart);
+        //    await _context.SaveChangesAsync();
+
+        //    return CreatedAtAction("GetTShoppingCart", new { id = tShoppingCart.FCartId }, tShoppingCart);
+        //}
+
     }
 }
