@@ -79,7 +79,7 @@ namespace prjGroupB.Controllers
                 postImages.Add(new TPostImage
                 {
                     FPostId = DTO.FPostId,
-                    FImage = DTO.FImage
+                    FImage = Convert.FromBase64String(DTO.FImage.Split(',')[1])
                 });
             }
             _context.TPostImages.AddRange(postImages);
