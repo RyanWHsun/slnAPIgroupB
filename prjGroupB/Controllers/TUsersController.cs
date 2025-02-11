@@ -197,11 +197,14 @@ namespace prjGroupB.Controllers
         //密碼雜湊
         private string HashPassword(string password)
         {
-            using (SHA256 sha256 = SHA256.Create())
-            {
-                byte[] hashedBytes = sha256.ComputeHash(Encoding.UTF8.GetBytes(password));
-                return BitConverter.ToString(hashedBytes).Replace("-", "").ToLower();
-            }
+            //BCrypt密碼雜湊
+            return BCrypt.Net.BCrypt.HashPassword(password);
+            //SHA-256
+            //using (SHA256 sha256 = SHA256.Create())
+            //{
+            //    byte[] hashedBytes = sha256.ComputeHash(Encoding.UTF8.GetBytes(password));
+            //    return BitConverter.ToString(hashedBytes).Replace("-", "").ToLower();
+            //}
         }
 
         // DELETE: api/TUsers/5
