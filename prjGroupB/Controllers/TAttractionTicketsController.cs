@@ -137,6 +137,11 @@ namespace prjGroupB.Controllers {
             return ticketTypes;
         }
 
+        [HttpGet("Count")]
+        public async Task<int> GetTicketQuantities() {
+            return await _context.TAttractionTickets.CountAsync();
+        }
+
         // PUT: api/TAttractionTickets/5
         // To protect from overposting attacks, see https://go.microsoft.com/fwlink/?linkid=2123754
         [HttpPut("{id}")]

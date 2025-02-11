@@ -55,37 +55,5 @@ namespace prjGroupB.Controllers {
 
             return new JwtSecurityTokenHandler().WriteToken(token);
         }
-
-        // GET: api/Auth/userInfo
-        // Writer: Li-Chun Chen
-        [HttpGet("userInfo")]
-        public IActionResult GetUserInfo() {
-            var token = Request.Cookies["jwt_token"];
-            if (string.IsNullOrEmpty(token)) {
-                return Unauthorized(new { Message = "No token found" });
-            }
-
-            var tokenHandler = new JwtSecurityTokenHandler();
-            var key = new SymmetricSecurityKey(Encoding.UTF8.GetBytes(_secretKey));
-
-            try {
-                var claimsPrincipal = tokenHandler.ValidateToken(token, new TokenValidationParameters {
-                    ValidateIssuerSigningKey = true,
-                    IssuerSigningKey = key,
-                    ValidateIssuer = false,
-                    ValidateAudience = false,
-                    ValidateLifetime = true
-                }, out var validatedToken);
-
-                var userId = claimsPrincipal.FindFirst(ClaimTypes.NameIdentifier)?.Value;
-                var userName = claimsPrincipal.FindFirst(ClaimTypes.Name)?.Value;
-
-                return Ok(new { userId, userName });
-            }
-            catch {
-                return Unauthorized(new { Message = "Invalid token" });
-            }
-        }
-        // Writer: Li-Chun Chen
     }
 }

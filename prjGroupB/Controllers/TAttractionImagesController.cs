@@ -61,6 +61,7 @@ namespace prjGroupB.Controllers {
         }
 
         // GET: api/TAttractionImages/Search?id=5&amount=1
+        // 根據 attraction ID 取得圖片(可選張數)
         [HttpGet("Search")]
         public async Task<TAttractionImageDTO> GetOneTAttractionImage(int id, int amount = 1) {
             var attractionImage = await _context.TAttractionImages.Include(image=>image.FAttraction).Where(image => image.FAttractionId == id).FirstOrDefaultAsync();
