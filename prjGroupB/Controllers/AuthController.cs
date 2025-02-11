@@ -64,17 +64,23 @@ namespace prjGroupB.Controllers
                 SameSite = SameSiteMode.None,
                 Expires = DateTime.UtcNow.AddHours(24)//一天後過期
             });
-            return Ok(new { Message = "登入成功", token=token});
+            return Ok(new { Message = "登入成功"});
         }
 
 
         [HttpPost("logout")]
         public IActionResult LogOut()
         {
-            // 1️⃣ 清除 HttpOnly Cookie
-            Response.Cookies.Delete("jwt_token");
-
-            // 2️⃣ 返回成功訊息
+            // 1️ 清除 HttpOnly Cookie
+            Response.Cookies.Append("jwt_token","",new CookieOptions
+            {
+                HttpOnly = true,
+                Secure = false, // 本機開發時設為 false，正式環境應設為 true
+                SameSite = SameSiteMode.Lax,
+                Path = "/", // 確保 Cookie 被刪除
+                Expires = DateTime.UtcNow.AddYears(-1) // 立即讓 Cookie 過期
+            });
+            // 2️ 返回成功訊息
             return Ok(new { Message = "登出成功" });
         }
 
