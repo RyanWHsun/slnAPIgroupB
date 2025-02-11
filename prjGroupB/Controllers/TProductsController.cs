@@ -69,6 +69,7 @@ namespace prjGroupB.Controllers
                 .Where(p => (bool)p.FIsOnSales) // 只篩選 FIsOnSales 為 true 的商品
                 .Where(p => string.IsNullOrEmpty(keyword) || p.FProductName.Contains(keyword) || p.FProductDescription.Contains(keyword)) // 搜尋關鍵字
                 .Where(p => !categoryId.HasValue || p.FProductCategoryId == categoryId) // 篩選類別
+                .OrderByDescending(p => (p.FProductUpdated ?? p.FProductDateAdd)) // 取較新的時間排序
                 .Skip((page - 1) * pageSize) // 跳過前面 (page - 1) * pageSize 筆數據
                 .Take(pageSize) // 取 pageSize 筆數據
                 .ToListAsync(); // 將查詢結果載入記憶體
@@ -90,7 +91,6 @@ namespace prjGroupB.Controllers
                              .Select(img => img.FImage) // 只取得 byte[] 圖片資料
                              .FirstOrDefault() is byte[] firstImage? ConvertToThumbnailBase64(firstImage,200,200) : null 
             });
-
             return allProducts;
         }
 
@@ -204,6 +204,7 @@ namespace prjGroupB.Controllers
             }
             product.FProductName=productDetailDTO.FProductName;
             product.FProductPrice = productDetailDTO.FProductPrice;
+            product.FProductCategoryId= productDetailDTO.FProductCategoryId;
             product.FProductDescription = productDetailDTO.FProductDescription;
             product.FIsOnSales = productDetailDTO.FIsOnSales;
             product.FStock = productDetailDTO.FStock;
