@@ -303,7 +303,30 @@ namespace prjGroupB.Controllers
             }
         }
 
+        //取得最新商品
+        //GET: api/TProducts/latest
+        [HttpGet("latest")]
+        public async Task<IEnumerable<TProductLatestDTO>> GetLatestProducts()
+        {
+            var products = await _context.TProducts
+                .Include(p => p.TProductImages) // 載入商品圖片導覽屬性
+                .Where(p => p.FIsOnSales == true)
+                .OrderByDescending(p => p.FProductDateAdd)
+                .Take(4)
+                .ToListAsync();
 
+            var latestProducts = products.Select(p => new TProductLatestDTO
+            {
+                FProductId = p.FProductId,
+                FProductName = p.FProductName,
+                FProductDateAdd = p.FProductDateAdd,
+                FSingleImage = p.TProductImages
+                                .OrderBy(img => img.FProductImageId)
+                                .Select(img => img.FImage)
+                                .FirstOrDefault() is byte[] firstImage ? ConvertToThumbnailBase64(firstImage, 100, 100) : null
+            });                
+            return latestProducts;
+        }
 
 
         // POST: api/TProducts
