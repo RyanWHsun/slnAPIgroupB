@@ -26,7 +26,8 @@ public class EventController : ControllerBase
         try
         {
             var events = await _context.TEvents
-                .Include(e => e.TEventImages)  // 確保載入圖片
+                .Include(e => e.TEventLocations)  // 確保載入地點資料
+                .Include(e => e.TEventImages) // 載入圖片
                 .Select(e => new
                 {
                     e.FEventId,
@@ -34,8 +35,11 @@ public class EventController : ControllerBase
                     e.FEventDescription,
                     e.FEventStartDate,
                     e.FEventEndDate,
-                    ImageBase64 = e.TEventImages.FirstOrDefault() != null
-                        ? "data:image/png;base64," + Convert.ToBase64String(e.TEventImages.FirstOrDefault().FEventImage)
+                    Location = e.TEventLocations.Any()
+                        ? e.TEventLocations.Select(l => l.FLocationName).FirstOrDefault()
+                        : "未知地點", // 確保地點不為 null
+                    ImageBase64 = e.TEventImages.Any()
+                        ? "data:image/png;base64," + Convert.ToBase64String(e.TEventImages.First().FEventImage)
                         : null // 無圖片則回傳 null
                 })
                 .ToListAsync();
