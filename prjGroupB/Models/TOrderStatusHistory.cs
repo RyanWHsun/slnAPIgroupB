@@ -7,7 +7,11 @@ namespace prjGroupB.Models;
 
 public partial class TOrderStatusHistory
 {
-    public int FStatusId { get; set; }
+    public int FStatusHistoryId { get; set; }
+
+    public int FOrderStatusId { get; set; }
+
+    public int FOrderId { get; set; }
 
     public string FStatusName { get; set; }
 

@@ -8,17 +8,14 @@ using System.IdentityModel.Tokens.Jwt;
 using System.Security.Claims;
 using System.Text;
 
-namespace prjGroupB.Controllers
-{
+namespace prjGroupB.Controllers {
     [Route("api/[controller]")]
     [ApiController]
-    public class AuthController : ControllerBase
-    {
+    public class AuthController : ControllerBase {
         private readonly dbGroupBContext _context;
         private readonly string _secretKey = "b6t8fJH2WjwYgJt7XPTqVX37WYgKs8TZ";//這是JWT密匙
 
-        public AuthController(dbGroupBContext context)
-        {
+        public AuthController(dbGroupBContext context) {
             _context = context;
         }
 
