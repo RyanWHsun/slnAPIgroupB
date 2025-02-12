@@ -6,6 +6,6 @@
 
         public int? FPostId { get; set; }
 
-        public byte[] FImage { get; set; }
+        public string FImage { get; set; }
     }
 }

@@ -682,19 +682,12 @@ public partial class dbGroupBContext : DbContext
             entity.Property(e => e.FShipAddress)
                 .HasMaxLength(100)
                 .HasColumnName("fShipAddress");
-            entity.Property(e => e.FStatusId).HasColumnName("fStatusId");
+            entity.Property(e => e.FStatusHistoryId).HasColumnName("fStatusHistoryId");
             entity.Property(e => e.FUserId).HasColumnName("fUserId");
 
-            entity.HasOne(d => d.FOrderStatus).WithMany(p => p.TOrderFOrderStatuses)
-                .HasForeignKey(d => d.FOrderStatusId)
-                .HasConstraintName("FK_tOrders_tOrderStatus");
-
-            entity.HasOne(d => d.FStatus).WithMany(p => p.TOrderFStatuses)
-                .HasForeignKey(d => d.FStatusId)
-                .HasConstraintName("FK_tOrders_tOrderStatus1");
-
-            entity.HasOne(d => d.FStatusNavigation).WithMany(p => p.TOrders)
-                .HasForeignKey(d => d.FStatusId)
+            entity.HasOne(d => d.FStatusHistory).WithMany(p => p.TOrders)
+                .HasForeignKey(d => d.FStatusHistoryId)
+                .OnDelete(DeleteBehavior.Cascade)
                 .HasConstraintName("FK_tOrders_tOrderStatusHistory");
 
             entity.HasOne(d => d.FUser).WithMany(p => p.TOrders)
@@ -716,13 +709,13 @@ public partial class dbGroupBContext : DbContext
 
         modelBuilder.Entity<TOrderStatusHistory>(entity =>
         {
-            entity.HasKey(e => e.FStatusId);
+            entity.HasKey(e => e.FStatusHistoryId);
 
             entity.ToTable("tOrderStatusHistory");
 
-            entity.Property(e => e.FStatusId)
-                .ValueGeneratedNever()
-                .HasColumnName("fStatusId");
+            entity.Property(e => e.FStatusHistoryId).HasColumnName("fStatusHistoryId");
+            entity.Property(e => e.FOrderId).HasColumnName("fOrderId");
+            entity.Property(e => e.FOrderStatusId).HasColumnName("fOrderStatusId");
             entity.Property(e => e.FStatusName)
                 .HasMaxLength(50)
                 .HasColumnName("fStatusName");
@@ -755,6 +748,7 @@ public partial class dbGroupBContext : DbContext
 
             entity.HasOne(d => d.FOrder).WithMany(p => p.TOrdersDetails)
                 .HasForeignKey(d => d.FOrderId)
+                .OnDelete(DeleteBehavior.Cascade)
                 .HasConstraintName("FK_tOrdersDetails_tOrders");
         });
 
@@ -964,7 +958,9 @@ public partial class dbGroupBContext : DbContext
             entity.ToTable("tProductImage");
 
             entity.Property(e => e.FProductImageId).HasColumnName("fProductImageId");
-            entity.Property(e => e.FImage).HasColumnName("fImage");
+            entity.Property(e => e.FImage)
+                .HasColumnType("image")
+                .HasColumnName("fImage");
             entity.Property(e => e.FProductId).HasColumnName("fProductId");
 
             entity.HasOne(d => d.FProduct).WithMany(p => p.TProductImages)
