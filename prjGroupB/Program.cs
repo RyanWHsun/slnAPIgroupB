@@ -15,10 +15,8 @@ builder.Services.AddDbContext<dbGroupBContext>(options =>
 //var secretKey = "YourSuperSecretKey"; // 請使用更安全的密鑰
 var secretKey = "b6t8fJH2WjwYgJt7XPTqVX37WYgKs8TZ";//先假設隨機字串符
 builder.Services.AddAuthentication(JwtBearerDefaults.AuthenticationScheme)
-    .AddJwtBearer(options =>
-    {
-        options.TokenValidationParameters = new TokenValidationParameters
-        {
+    .AddJwtBearer(options => {
+        options.TokenValidationParameters = new TokenValidationParameters {
             ValidateIssuer = true,
             ValidateAudience = true,
             ValidateLifetime = true,
@@ -29,12 +27,9 @@ builder.Services.AddAuthentication(JwtBearerDefaults.AuthenticationScheme)
         };
 
         // 從 Cookie 中提取 Token
-        options.Events = new JwtBearerEvents
-        {
-            OnMessageReceived = context =>
-            {
-                if (context.Request.Cookies.ContainsKey("jwt_token"))
-                {
+        options.Events = new JwtBearerEvents {
+            OnMessageReceived = context => {
+                if (context.Request.Cookies.ContainsKey("jwt_token")) {
                     context.Token = context.Request.Cookies["jwt_token"];
                 }
                 return Task.CompletedTask;
@@ -72,11 +67,13 @@ builder.Services.AddControllers();
 builder.Services.AddEndpointsApiExplorer();
 builder.Services.AddSwaggerGen();
 
+// 註冊 HttpClient
+builder.Services.AddHttpClient();
+
 var app = builder.Build();
 
 // Configure the HTTP request pipeline.
-if (app.Environment.IsDevelopment())
-{
+if (app.Environment.IsDevelopment()) {
     app.UseSwagger();
     app.UseSwaggerUI();
 }
