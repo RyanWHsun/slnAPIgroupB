@@ -60,6 +60,28 @@ namespace prjGroupB.Controllers {
             return attractionImageDTOs;
         }
 
+        // GET: api/TAttractionImages/Search?id=5&amount=1
+        // 根據 attraction ID 取得圖片(可選張數)
+        [HttpGet("Search")]
+        public async Task<TAttractionImageDTO> GetOneTAttractionImage(int id, int amount = 1) {
+            var attractionImage = await _context.TAttractionImages.Include(image=>image.FAttraction).Where(image => image.FAttractionId == id).FirstOrDefaultAsync();
+            // .Any() 是 LINQ 的一個方法，檢查集合中是否存在至少一個元素。
+            // 如果集合中有資料，.Any() 會回傳 true。
+            // 如果集合為空，.Any() 會回傳 false。
+            if (attractionImage == null) {
+                return null;
+            }
+
+            var attractionImageDTO = new TAttractionImageDTO {
+                FAttractionId = attractionImage.FAttractionId,
+                FAttractionName = attractionImage.FAttraction.FAttractionName,
+                FAttractionImageId = attractionImage.FAttractionImageId,
+                FImage = attractionImage.FImage
+            };
+
+            return attractionImageDTO;
+        }
+
         // PUT: api/TAttractionImages/5
         // To protect from overposting attacks, see https://go.microsoft.com/fwlink/?linkid=2123754
         //[HttpPut("{id}")]
