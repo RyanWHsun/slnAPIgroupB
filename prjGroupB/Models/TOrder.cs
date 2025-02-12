@@ -19,13 +19,9 @@ public partial class TOrder
 
     public string FPaymentMethod { get; set; }
 
-    public int? FStatusId { get; set; }
+    public int? FStatusHistoryId { get; set; }
 
-    public virtual TOrderStatus FOrderStatus { get; set; }
-
-    public virtual TOrderStatus FStatus { get; set; }
-
-    public virtual TOrderStatusHistory FStatusNavigation { get; set; }
+    public virtual TOrderStatusHistory FStatusHistory { get; set; }
 
     public virtual TUser FUser { get; set; }
 
