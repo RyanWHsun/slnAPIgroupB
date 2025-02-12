@@ -6,13 +6,14 @@ using System.Threading.Tasks;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Mvc;
+using Microsoft.CodeAnalysis;
 using Microsoft.EntityFrameworkCore;
 using prjGroupB.DTO;
 using prjGroupB.Models;
 
 namespace prjGroupB.Controllers
 {
-    
+
     [Route("api/[controller]")]
     [ApiController]
     public class TPostsController : ControllerBase
@@ -23,13 +24,12 @@ namespace prjGroupB.Controllers
         {
             _context = context;
         }
-        // GET: api/TPosts
-        [HttpGet]
-        [Authorize]
-        public async Task<IEnumerable<TPostsDTO>> GetEmployees()
+
+        // GET: api/TPosts/GetAllPosts
+        [HttpGet("GetPublicPosts")]
+        public async Task<IEnumerable<TPostsDTO>> GetPublicPosts()
         {
-            var userId = int.Parse(User.FindFirstValue(ClaimTypes.NameIdentifier));
-            return _context.TPosts.Where(t=>t.FUserId == userId).Select(e => new TPostsDTO
+            return _context.TPosts.Where(t => t.FIsPublic == true).Select(e => new TPostsDTO
             {
                 FPostId = e.FPostId,
                 FUserId = e.FUserId,
@@ -42,89 +42,103 @@ namespace prjGroupB.Controllers
             });
         }
 
-        //以下為原始範例程式
-        // GET: api/TPosts
-        //[HttpGet]
-        //public async Task<ActionResult<IEnumerable<TPost>>> GetTPosts()
-        //{
-        //    return await _context.TPosts.ToListAsync();
-        //}
-
-        // GET: api/TPosts/5
-        //[HttpGet("{id}")]
-        //public async Task<ActionResult<TPost>> GetTPost(int id)
-        //{
-        //    var tPost = await _context.TPosts.FindAsync(id);
-
-        //    if (tPost == null)
-        //    {
-        //        return NotFound();
-        //    }
-
-        //    return tPost;
-        //}
-
-        // PUT: api/TPosts/5
-        // To protect from overposting attacks, see https://go.microsoft.com/fwlink/?linkid=2123754
-        [HttpPut("{id}")]
-        public async Task<IActionResult> PutTPost(int id, TPost tPost)
+        // GET: api/TPosts/GetMyPosts
+        [HttpGet]
+        [Authorize]
+        public async Task<IEnumerable<TPostsDTO>> GetMyPosts()
         {
-            if (id != tPost.FPostId)
+            int userId = int.Parse(User.FindFirstValue(ClaimTypes.NameIdentifier));
+            return _context.TPosts.Where(t => t.FUserId == userId).Select(e => new TPostsDTO
             {
-                return BadRequest();
+                FPostId = e.FPostId,
+                FUserId = e.FUserId,
+                FTitle = e.FTitle,
+                FContent = e.FContent,
+                FCreatedAt = e.FCreatedAt,
+                FUpdatedAt = e.FUpdatedAt,
+                FIsPublic = e.FIsPublic,
+                FCategoryId = e.FCategoryId
+            });
+        }
+
+        // PUT: api/TPosts/id
+        [HttpPut("{id}")]
+        [Authorize]
+        public async Task<string> PutTPost(int id, TPostsDTO PostsDTO)
+        {
+            int userId = int.Parse(User.FindFirstValue(ClaimTypes.NameIdentifier));
+            TPost post = await _context.TPosts.FindAsync(id);
+            if (post == null)
+            {
+                return "查無文章";
             }
-
-            _context.Entry(tPost).State = EntityState.Modified;
-
+            if (post.FUserId != userId)
+            {
+                return "你沒有權限修改此文章";
+            }
+            post.FTitle = PostsDTO.FTitle;
+            post.FContent = PostsDTO.FContent;
+            post.FUpdatedAt = DateTime.Now;
+            post.FIsPublic = PostsDTO.FIsPublic;
+            //post.FCategoryId = PostsDTO.FCategoryId;
             try
             {
+                _context.TPosts.Update(post);
                 await _context.SaveChangesAsync();
             }
-            catch (DbUpdateConcurrencyException)
+            catch (DbUpdateException ex)
             {
-                if (!TPostExists(id))
-                {
-                    return NotFound();
-                }
-                else
-                {
-                    throw;
-                }
+                return "修改資料庫失敗";
             }
-
-            return NoContent();
+            return "修改文章成功";
         }
 
         // POST: api/TPosts
-        // To protect from overposting attacks, see https://go.microsoft.com/fwlink/?linkid=2123754
         [HttpPost]
-        public async Task<ActionResult<TPost>> PostTPost(TPost tPost)
+        [Authorize]
+        public async Task<TPostsDTO> PostTPost(TPostsDTO PostsDTO)
         {
-            _context.TPosts.Add(tPost);
-            await _context.SaveChangesAsync();
-
-            return CreatedAtAction("GetTPost", new { id = tPost.FPostId }, tPost);
-        }
-
-        // DELETE: api/TPosts/5
-        [HttpDelete("{id}")]
-        public async Task<IActionResult> DeleteTPost(int id)
-        {
-            var tPost = await _context.TPosts.FindAsync(id);
-            if (tPost == null)
+            int userId = int.Parse(User.FindFirstValue(ClaimTypes.NameIdentifier));
+            TPost post = new TPost
             {
-                return NotFound();
-            }
-
-            _context.TPosts.Remove(tPost);
+                FUserId = userId,
+                FTitle = PostsDTO.FTitle,
+                FContent = PostsDTO.FContent,
+                FCreatedAt = DateTime.Now,
+                FIsPublic = PostsDTO.FIsPublic,
+                //FCategoryId = PostsDTO.FCategoryId
+            };
+            _context.TPosts.Add(post);
             await _context.SaveChangesAsync();
-
-            return NoContent();
+            PostsDTO.FPostId = post.FPostId;
+            return PostsDTO;
         }
 
-        private bool TPostExists(int id)
+        // DELETE: api/TPosts/id
+        [HttpDelete("{id}")]
+        [Authorize]
+        public async Task<string> DeleteTPost(int id)
         {
-            return _context.TPosts.Any(e => e.FPostId == id);
+            int userId = int.Parse(User.FindFirstValue(ClaimTypes.NameIdentifier));
+            TPost post = await _context.TPosts.FindAsync(id);
+            if (post == null)
+            {
+                return "查無文章";
+            }
+            if (post.FUserId != userId)
+            {
+                return "你沒有權限刪除此文章";
+            }
+            try
+            {
+                _context.TPosts.Remove(post);
+                await _context.SaveChangesAsync();
+            }
+            catch (DbUpdateException ex)
+            {
+                return "刪除資料庫失敗";
+            }
+            return "刪除文章成功";
         }
     }
 }

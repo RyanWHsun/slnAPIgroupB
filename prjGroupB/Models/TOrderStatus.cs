@@ -10,8 +10,4 @@ public partial class TOrderStatus
     public int FOrderStatusId { get; set; }
 
     public string FStatusName { get; set; }
-
-    public virtual ICollection<TOrder> TOrderFOrderStatuses { get; set; } = new List<TOrder>();
-
-    public virtual ICollection<TOrder> TOrderFStatuses { get; set; } = new List<TOrder>();
 }
