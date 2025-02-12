@@ -11,10 +11,12 @@ using System.IO;
 public class EventController : ControllerBase
 {
     private readonly dbGroupBContext _context;
+    private readonly IImageService _imageService; // ✅ 確保 `_imageService` 存在
 
-    public EventController(dbGroupBContext context)
+    public EventController(dbGroupBContext context, IImageService imageService)
     {
         _context = context;
+        _imageService = imageService ?? throw new ArgumentNullException(nameof(imageService));
     }
 
     // ✅ **取得所有活動**
@@ -24,9 +26,7 @@ public class EventController : ControllerBase
         try
         {
             var events = await _context.TEvents
-                .Include(e => e.TEventLocations)
-                .Include(e => e.TEventRegistrationForms)
-                .Include(e => e.TEventImages)
+                .Include(e => e.TEventImages)  // 確保載入圖片
                 .Select(e => new
                 {
                     e.FEventId,
@@ -34,14 +34,9 @@ public class EventController : ControllerBase
                     e.FEventDescription,
                     e.FEventStartDate,
                     e.FEventEndDate,
-                    e.FEventCreatedDate,
-                    e.FEventUpdatedDate,
-                    e.FEventIsActive,
-                    Location = e.TEventLocations.Any() ? e.TEventLocations.Select(l => l.FLocationName).FirstOrDefault() : "未知地點",
-                    ParticipantCount = e.TEventRegistrationForms != null ? e.TEventRegistrationForms.Count() : 0,
-                    ImageBase64 = e.TEventImages.Any()
-                        ? "data:image/png;base64," + Convert.ToBase64String(e.TEventImages.First().FEventImage)
-                        : null // ✅ 轉換第一張圖片為 Base64
+                    ImageBase64 = e.TEventImages.FirstOrDefault() != null
+                        ? "data:image/png;base64," + Convert.ToBase64String(e.TEventImages.FirstOrDefault().FEventImage)
+                        : null // 無圖片則回傳 null
                 })
                 .ToListAsync();
 
@@ -58,8 +53,7 @@ public class EventController : ControllerBase
     public async Task<ActionResult<object>> GetEvent(int id)
     {
         var eventItem = await _context.TEvents
-            .Include(e => e.TEventLocations)
-            .Include(e => e.TEventImages)
+            .Include(e => e.TEventImages) // 確保載入圖片
             .FirstOrDefaultAsync(e => e.FEventId == id);
 
         if (eventItem == null)
@@ -67,19 +61,21 @@ public class EventController : ControllerBase
             return NotFound();
         }
 
-        var imageBase64 = eventItem.TEventImages.Any()
-            ? "data:image/png;base64," + Convert.ToBase64String(eventItem.TEventImages.First().FEventImage)
-            : null;
+        var eventImage = eventItem.TEventImages.FirstOrDefault();
 
-        return Ok(new
+        var result = new
         {
             eventItem.FEventId,
             eventItem.FEventName,
             eventItem.FEventDescription,
             eventItem.FEventStartDate,
             eventItem.FEventEndDate,
-            ImageBase64 = imageBase64
-        });
+            ImageBase64 = eventImage != null
+                ? "data:image/png;base64," + Convert.ToBase64String(eventImage.FEventImage)
+                : null
+        };
+
+        return Ok(result);
     }
 
     // ✅ **新增活動**
@@ -88,10 +84,9 @@ public class EventController : ControllerBase
     {
         if (eventDto == null || string.IsNullOrEmpty(eventDto.Name))
         {
-            return BadRequest("活動資訊不完整");
+            return BadRequest(new { message = "活動資訊不完整" });
         }
 
-        // **創建活動**
         var newEvent = new TEvent
         {
             FEventName = eventDto.Name,
@@ -101,26 +96,26 @@ public class EventController : ControllerBase
         };
 
         _context.TEvents.Add(newEvent);
-        await _context.SaveChangesAsync(); // **先存活動以取得 FEventId**
+        await _context.SaveChangesAsync(); // 先存活動
 
-        // **儲存圖片到資料庫**
-        if (image != null && image.Length > 0)
+        // 處理圖片
+        if (image != null)
         {
             using var memoryStream = new MemoryStream();
             await image.CopyToAsync(memoryStream);
 
             var eventImage = new TEventImage
             {
-                FEventId = newEvent.FEventId, // **關聯活動**
-                FEventImage = memoryStream.ToArray(), // **存入 byte[]**
-                FImageType = image.ContentType // **存入圖片類型**
+                FEventId = newEvent.FEventId,
+                FEventImage = memoryStream.ToArray(),
+                FImageType = image.ContentType
             };
 
             _context.TEventImages.Add(eventImage);
             await _context.SaveChangesAsync();
         }
 
-        return Ok(newEvent);
+        return Ok(new { message = "活動新增成功", eventId = newEvent.FEventId });
     }
 
     // ✅ **更新活動**
@@ -140,13 +135,12 @@ public class EventController : ControllerBase
 
         if (image != null)
         {
-            using var memoryStream = new MemoryStream();
-            await image.CopyToAsync(memoryStream);
-
+            var imageData = await _imageService.SaveImage(image); // 取得 byte[]
             var existingImage = await _context.TEventImages.FirstOrDefaultAsync(img => img.FEventId == id);
+
             if (existingImage != null)
             {
-                existingImage.FEventImage = memoryStream.ToArray();
+                existingImage.FEventImage = imageData;
                 existingImage.FImageType = image.ContentType;
                 _context.TEventImages.Update(existingImage);
             }
@@ -155,7 +149,7 @@ public class EventController : ControllerBase
                 var newImage = new TEventImage
                 {
                     FEventId = id,
-                    FEventImage = memoryStream.ToArray(),
+                    FEventImage = imageData,
                     FImageType = image.ContentType
                 };
                 _context.TEventImages.Add(newImage);
@@ -190,4 +184,5 @@ public class EventController : ControllerBase
         return NoContent();
     }
 }
+
 
