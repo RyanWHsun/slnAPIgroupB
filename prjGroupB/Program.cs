@@ -5,6 +5,8 @@ using prjGroupB.Models;
 using System.Text;
 
 var builder = WebApplication.CreateBuilder(args);
+Console.WriteLine($"WebRootPath: {builder.Environment.WebRootPath}");
+builder.Services.AddScoped<IImageService, ImageService>();
 
 //Add services to the container.
 //Database
