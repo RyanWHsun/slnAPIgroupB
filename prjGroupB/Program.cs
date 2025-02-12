@@ -6,6 +6,8 @@ using System.Text;
 
 var builder = WebApplication.CreateBuilder(args);
 
+builder.Services.AddScoped<IImageService, ImageService>();
+
 //Add services to the container.
 //Database
 builder.Services.AddDbContext<dbGroupBContext>(options =>
