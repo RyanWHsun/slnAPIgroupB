@@ -132,6 +132,11 @@ namespace prjGroupB.Controllers {
             return attractionDTOs;
         }
 
+        [HttpGet("Count")]
+        public async Task<int> GetAttractionQuantities() {
+            return await _context.TAttractions.CountAsync();
+        }
+
         // PUT: api/TAttractions/5
         // To protect from overposting attacks, see https://go.microsoft.com/fwlink/?linkid=2123754
         [HttpPut("{id}")]
