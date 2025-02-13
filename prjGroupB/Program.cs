@@ -1,4 +1,4 @@
-using Microsoft.AspNetCore.Authentication.JwtBearer;
+﻿using Microsoft.AspNetCore.Authentication.JwtBearer;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.IdentityModel.Tokens;
 using prjGroupB.Models;
@@ -6,19 +6,19 @@ using System.Text;
 
 var builder = WebApplication.CreateBuilder(args);
 
+// ? 註冊 ImageService
 builder.Services.AddScoped<IImageService, ImageService>();
 
-//Add services to the container.
-//Database
+// ? 設定資料庫連線
 builder.Services.AddDbContext<dbGroupBContext>(options =>
     options.UseSqlServer(builder.Configuration.GetConnectionString("dbGroupB")));
 
-//JWT
-//var secretKey = "YourSuperSecretKey"; // �ШϥΧ�w�����K�_
-var secretKey = "b6t8fJH2WjwYgJt7XPTqVX37WYgKs8TZ";//�����]�H���r���
+// ? 設定 JWT 驗證
+var secretKey = "b6t8fJH2WjwYgJt7XPTqVX37WYgKs8TZ"; // 測試密鑰
 builder.Services.AddAuthentication(JwtBearerDefaults.AuthenticationScheme)
     .AddJwtBearer(options => {
-        options.TokenValidationParameters = new TokenValidationParameters {
+        options.TokenValidationParameters = new TokenValidationParameters
+        {
             ValidateIssuer = true,
             ValidateAudience = true,
             ValidateLifetime = true,
@@ -28,10 +28,12 @@ builder.Services.AddAuthentication(JwtBearerDefaults.AuthenticationScheme)
             IssuerSigningKey = new SymmetricSecurityKey(Encoding.UTF8.GetBytes(secretKey))
         };
 
-        // �q Cookie ������ Token
-        options.Events = new JwtBearerEvents {
+        // ? 確保從 Cookie 中提取 JWT Token
+        options.Events = new JwtBearerEvents
+        {
             OnMessageReceived = context => {
-                if (context.Request.Cookies.ContainsKey("jwt_token")) {
+                if (context.Request.Cookies.ContainsKey("jwt_token"))
+                {
                     context.Token = context.Request.Cookies["jwt_token"];
                 }
                 return Task.CompletedTask;
@@ -39,57 +41,49 @@ builder.Services.AddAuthentication(JwtBearerDefaults.AuthenticationScheme)
         };
     });
 
-//CORS
+// ? 修正 CORS 設定
+var MyAllowSpecificOrigins = "_myAllowSpecificOrigins";
+
 builder.Services.AddCors(options =>
 {
-    options.AddDefaultPolicy(policy =>
+    options.AddPolicy(MyAllowSpecificOrigins, policy =>
     {
-        policy.WithOrigins("http://localhost:4200").AllowCredentials().AllowAnyHeader().AllowAnyMethod();
+        policy.WithOrigins("http://localhost:4200")
+              .AllowAnyHeader()
+              .AllowAnyMethod()
+              .AllowCredentials(); // 允許攜帶 Cookie
     });
 });
-//builder.Services.AddCors(options =>
-//{
-//    options.AddPolicy("AllowFrontend",
-//        policy =>
-//        {
-//            policy.WithOrigins("http://localhost:4200")
-//                  .AllowCredentials() // ���\��a Cookie
-//                  .AllowAnyMethod()
-//                  .AllowAnyHeader();
-//        });
-//});
 
-
-
-
-
-
+// ? 註冊 Controllers
 builder.Services.AddControllers();
-// Learn more about configuring Swagger/OpenAPI at https://aka.ms/aspnetcore/swashbuckle
 builder.Services.AddEndpointsApiExplorer();
 builder.Services.AddSwaggerGen();
 
-// ���U HttpClient
+// ? 註冊 HttpClient
 builder.Services.AddHttpClient();
 
 var app = builder.Build();
 
-// Configure the HTTP request pipeline.
-if (app.Environment.IsDevelopment()) {
+// ? 啟用 Swagger (僅限開發環境)
+if (app.Environment.IsDevelopment())
+{
     app.UseSwagger();
     app.UseSwaggerUI();
 }
 
-//CORS
-app.UseCors();
-//app.UseCors("AllowFrontend");
+// ? 確保 CORS 設定生效
+app.UseCors(MyAllowSpecificOrigins);
 
+// ? 啟用 HTTPS 重新導向
 app.UseHttpsRedirection();
 
+// ? 啟用 JWT 驗證
 app.UseAuthentication();
-
 app.UseAuthorization();
 
+// ? 設定路由
 app.MapControllers();
 
+// ? 啟動應用程式
 app.Run();
