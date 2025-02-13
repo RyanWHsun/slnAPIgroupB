@@ -27,5 +27,11 @@ namespace prjGroupB.Controllers {
 
             return Content(response, "application/json");
         }
+
+        [HttpGet("load-map")]
+        public IActionResult GetGoogleMapsApiKey() {
+            var apiKey = _config["GoogleMaps:ApiKey"];
+            return Ok(new { apiKey });
+        }
     }
 }
