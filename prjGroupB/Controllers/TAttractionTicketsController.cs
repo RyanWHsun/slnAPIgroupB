@@ -121,6 +121,7 @@ namespace prjGroupB.Controllers {
             return attractionTicketDTOs;
         }
 
+        // 取得門票種類
         // GET: api/TAttractionTickets/{ticketId}/types
         // id is the attraction id
         [HttpGet("{attractionId}/types")]
@@ -139,7 +140,10 @@ namespace prjGroupB.Controllers {
 
         [HttpGet("Count")]
         public async Task<int> GetTicketQuantities() {
-            return await _context.TAttractionTickets.CountAsync();
+            return await _context.TAttractionTickets
+                .Select(t=>t.FAttractionId) // 只取 fAttractionId
+                .Distinct()
+                .CountAsync();
         }
 
         // PUT: api/TAttractionTickets/5
