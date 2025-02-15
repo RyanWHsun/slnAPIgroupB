@@ -55,6 +55,14 @@
          "ObjectType": 0
       },
       {
+         "Name": "[dbo].[tAttractionViewLogs]",
+         "ObjectType": 0
+      },
+      {
+         "Name": "[dbo].[tAttractionViews]",
+         "ObjectType": 0
+      },
+      {
          "Name": "[dbo].[tChatRoom]",
          "ObjectType": 0
       },

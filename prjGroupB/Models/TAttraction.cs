@@ -54,4 +54,8 @@ public partial class TAttraction
     public virtual ICollection<TAttractionTicket> TAttractionTickets { get; set; } = new List<TAttractionTicket>();
 
     public virtual ICollection<TAttractionUserFavorite> TAttractionUserFavorites { get; set; } = new List<TAttractionUserFavorite>();
+
+    public virtual ICollection<TAttractionViewLog> TAttractionViewLogs { get; set; } = new List<TAttractionViewLog>();
+
+    public virtual ICollection<TAttractionView> TAttractionViews { get; set; } = new List<TAttractionView>();
 }
