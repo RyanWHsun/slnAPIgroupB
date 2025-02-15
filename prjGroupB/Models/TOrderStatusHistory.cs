@@ -17,5 +17,7 @@ public partial class TOrderStatusHistory
 
     public DateTime? FTimestamp { get; set; }
 
-    public virtual ICollection<TOrder> TOrders { get; set; } = new List<TOrder>();
+    public virtual TOrder FOrder { get; set; }
+
+    public virtual TOrderStatus FOrderStatus { get; set; }
 }

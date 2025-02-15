@@ -9,7 +9,7 @@ public partial class TOrder
 {
     public int FOrderId { get; set; }
 
-    public int? FUserId { get; set; }
+    public int? FBuyerId { get; set; }
 
     public int? FOrderStatusId { get; set; }
 
@@ -19,11 +19,13 @@ public partial class TOrder
 
     public string FPaymentMethod { get; set; }
 
-    public int? FStatusHistoryId { get; set; }
+    public string FExtraInfo { get; set; }
 
-    public virtual TOrderStatusHistory FStatusHistory { get; set; }
+    public virtual TUser FBuyer { get; set; }
 
-    public virtual TUser FUser { get; set; }
+    public virtual TOrderStatus FOrderStatus { get; set; }
+
+    public virtual ICollection<TOrderStatusHistory> TOrderStatusHistories { get; set; } = new List<TOrderStatusHistory>();
 
     public virtual ICollection<TOrdersDetail> TOrdersDetails { get; set; } = new List<TOrdersDetail>();
 }

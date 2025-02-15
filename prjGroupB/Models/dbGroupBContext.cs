@@ -672,6 +672,8 @@ public partial class dbGroupBContext : DbContext
             entity.ToTable("tOrders");
 
             entity.Property(e => e.FOrderId).HasColumnName("fOrderId");
+            entity.Property(e => e.FBuyerId).HasColumnName("fBuyerId");
+            entity.Property(e => e.FExtraInfo).HasColumnName("fExtraInfo");
             entity.Property(e => e.FOrderDate)
                 .HasColumnType("datetime")
                 .HasColumnName("fOrderDate");
@@ -682,17 +684,14 @@ public partial class dbGroupBContext : DbContext
             entity.Property(e => e.FShipAddress)
                 .HasMaxLength(100)
                 .HasColumnName("fShipAddress");
-            entity.Property(e => e.FStatusHistoryId).HasColumnName("fStatusHistoryId");
-            entity.Property(e => e.FUserId).HasColumnName("fUserId");
 
-            entity.HasOne(d => d.FStatusHistory).WithMany(p => p.TOrders)
-                .HasForeignKey(d => d.FStatusHistoryId)
-                .OnDelete(DeleteBehavior.Cascade)
-                .HasConstraintName("FK_tOrders_tOrderStatusHistory");
-
-            entity.HasOne(d => d.FUser).WithMany(p => p.TOrders)
-                .HasForeignKey(d => d.FUserId)
+            entity.HasOne(d => d.FBuyer).WithMany(p => p.TOrders)
+                .HasForeignKey(d => d.FBuyerId)
                 .HasConstraintName("FK_tOrders_tUser");
+
+            entity.HasOne(d => d.FOrderStatus).WithMany(p => p.TOrders)
+                .HasForeignKey(d => d.FOrderStatusId)
+                .HasConstraintName("FK_tOrders_tOrderStatus");
         });
 
         modelBuilder.Entity<TOrderStatus>(entity =>
@@ -722,6 +721,16 @@ public partial class dbGroupBContext : DbContext
             entity.Property(e => e.FTimestamp)
                 .HasColumnType("datetime")
                 .HasColumnName("fTimestamp");
+
+            entity.HasOne(d => d.FOrder).WithMany(p => p.TOrderStatusHistories)
+                .HasForeignKey(d => d.FOrderId)
+                .OnDelete(DeleteBehavior.ClientSetNull)
+                .HasConstraintName("FK_tOrderStatusHistory_tOrders");
+
+            entity.HasOne(d => d.FOrderStatus).WithMany(p => p.TOrderStatusHistories)
+                .HasForeignKey(d => d.FOrderStatusId)
+                .OnDelete(DeleteBehavior.ClientSetNull)
+                .HasConstraintName("FK_tOrderStatusHistory_tOrderStatus");
         });
 
         modelBuilder.Entity<TOrdersDetail>(entity =>
@@ -741,10 +750,6 @@ public partial class dbGroupBContext : DbContext
             entity.Property(e => e.FUnitPrice)
                 .HasColumnType("decimal(18, 2)")
                 .HasColumnName("fUnitPrice");
-
-            entity.HasOne(d => d.FItem).WithMany(p => p.TOrdersDetails)
-                .HasForeignKey(d => d.FItemId)
-                .HasConstraintName("FK_tOrdersDetails_tProduct");
 
             entity.HasOne(d => d.FOrder).WithMany(p => p.TOrdersDetails)
                 .HasForeignKey(d => d.FOrderId)

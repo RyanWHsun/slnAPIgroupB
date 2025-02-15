@@ -48,11 +48,12 @@ namespace prjGroupB.Controllers
                     FQuantity=i.FQuantity,
                     FItemName=GetItemName(i.FItemType,i.FItemId),
                     FSingleImage=GetItemImage(i.FItemType, i.FItemId),
+                    FSellerId = i.FItemType == "product" ? _context.TProducts.FirstOrDefault(p => p.FProductId == i.FItemId)?.FUserId : 0,
                     FSellerName = i.FItemType == "product"? GetSellerName(i.FItemType,i.FItemId):null,
                     FProductStock=i.FItemType =="product"? _context.TProducts.FirstOrDefault(p => p.FProductId == i.FItemId)?.FStock : null,
-                FSpecification = null, //若有規格要填
+                    FSpecification = i.FItemType == "attractionTicket"? _context.TAttractionTickets.FirstOrDefault(p => p.FAttractionTicketId==i.FItemId)?.FTicketType : null,
 
-                }).ToList();
+            }).ToList();
             if (!result.Any())
             {
                 return NotFound(new { messange = "購物車無項目。2" });
@@ -259,6 +260,10 @@ namespace prjGroupB.Controllers
             await _context.SaveChangesAsync();
             return Ok(new { message = "購物車項目已移除" });
         }
+
+        //抓取會員資料
+        //GET: 
+
 
 
         private bool TShoppingCartExists(int id)
