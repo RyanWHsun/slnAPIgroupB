@@ -24,36 +24,35 @@ public class EventController : ControllerBase
     {
         try
         {
-            // 確保 `null` 時回傳 `1`
             var events = await _context.TEvents
-                .Include(e => e.TEventLocations)   // 地點
-                .Include(e => e.TEventImages)      // 圖片
-                .Include(e => e.TEventSchedules)   // 計算行程天數
-                .Include(e => e.TEventRegistrationForms)
-                    .ThenInclude(r => r.TEventPayments) // 計算報名費 (Paid)
-                .Select(e => new
-                {
-                    e.FEventId,
-                    e.FEventName,
-                    e.FEventDescription,
-                    e.FEventStartDate,
-                    e.FEventEndDate,
-                    FDuration = e.TEventSchedules.Any()
-    ? (int?)((e.TEventSchedules.Max(s => (DateTime?)s.FEndTime).GetValueOrDefault()
-              - e.TEventSchedules.Min(s => (DateTime?)s.FStartTime).GetValueOrDefault())
-              .TotalDays + 1)
-    : 1, // 確保 `null` 時回傳 `1`
+    .Include(e => e.TEventLocations)
+    .Include(e => e.TEventImages)
+    .Include(e => e.TEventSchedules)
+    .Include(e => e.TEventRegistrationForms)
+        .ThenInclude(r => r.TEventPayments)
+    .Select(e => new
+    {
+        e.FEventId,
+        e.FEventName,
+        e.FEventDescription,
+        e.FEventStartDate,
+        e.FEventEndDate,
+        FLocation = e.TEventLocations.FirstOrDefault() != null
+            ? e.TEventLocations.FirstOrDefault().FLocationName
+            : "未知地點",
+        FParticipant = e.TEventRegistrationForms
+            .Count(r => r.FRegistrationStatus == "Confirmed"),
+        RegistrationFee = e.TEventRegistrationForms
+            .SelectMany(r => r.TEventPayments)
+            .Where(p => p.FPaymentStatus == "Paid")
+            .Sum(p => p.FAmount),
+        ImageBase64 = e.TEventImages.Any()
+            ? "data:image/png;base64," + Convert.ToBase64String(e.TEventImages.First().FEventImage)
+            : null
+    })
+    .ToListAsync();
 
-                    FParticipant = e.TEventRegistrationForms.Count(), // ✅ 參加人數
-                    RegistrationFee = e.TEventRegistrationForms
-                        .SelectMany(r => r.TEventPayments)
-                        .Where(p => p.FPaymentStatus == "Paid")
-                        .Sum(p => p.FAmount), // ✅ 報名費 (Paid)
-                    ImageBase64 = e.TEventImages.Any()
-                        ? "data:image/png;base64," + Convert.ToBase64String(e.TEventImages.First().FEventImage)
-                        : null
-                })
-                .ToListAsync();
+            Console.WriteLine($"📌 API 回傳資料: {System.Text.Json.JsonSerializer.Serialize(events)}");
 
             return Ok(events);
         }
@@ -89,21 +88,27 @@ public class EventController : ControllerBase
             eventItem.FEventDescription,
             eventItem.FEventStartDate,
             eventItem.FEventEndDate,
-            Location = eventItem.TEventLocations.Any()
+
+            // ✅ 統一變數名稱，確保前端可以讀取
+            fLocation = eventItem.TEventLocations.Any()
                 ? eventItem.TEventLocations.Select(l => l.FLocationName).FirstOrDefault()
-                : "未知地點",
+                : "未提供",
+
             FDuration = eventItem.TEventSchedules.Any()
-    ? (int?)((eventItem.TEventSchedules.Max(s => (DateTime?)s.FEndTime).GetValueOrDefault()
-              - eventItem.TEventSchedules.Min(s => (DateTime?)s.FStartTime).GetValueOrDefault())
-              .TotalDays + 1)
-    : 1, // 確保 `null` 時回傳 `1`
+                ? (int)((eventItem.TEventSchedules.Max(s => (DateTime?)s.FEndTime).GetValueOrDefault()
+                        - eventItem.TEventSchedules.Min(s => (DateTime?)s.FStartTime).GetValueOrDefault())
+                        .TotalDays + 1)
+                : 1,
 
             FParticipant = eventItem.TEventRegistrationForms.Count(),
+
             RegistrationFee = eventItem.TEventRegistrationForms
                 .SelectMany(r => r.TEventPayments)
                 .Where(p => p.FPaymentStatus == "Paid")
-                .Sum(p => p.FAmount), // ✅ 計算報名費 (Paid)
-            ImageBase64 = eventImage != null
+                .Sum(p => p.FAmount),
+
+            // ✅ 確保圖片回傳正確的 Base64 或 URL
+            imageBase64 = eventImage != null
                 ? "data:image/png;base64," + Convert.ToBase64String(eventImage.FEventImage)
                 : null
         };
