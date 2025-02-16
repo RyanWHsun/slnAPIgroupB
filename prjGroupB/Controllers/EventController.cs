@@ -154,4 +154,55 @@ public class EventController : ControllerBase
 
         return Ok(new { message = "活動新增成功", eventId = newEvent.FEventId });
     }
+
+    [HttpPost("UploadEventImage/{eventId}")]
+    public async Task<IActionResult> UploadEventImage(int eventId, IFormFile image)
+    {
+        if (image == null || !image.ContentType.StartsWith("image/"))
+        {
+            return BadRequest("請提供有效的圖片 (僅支援 JPG/PNG 格式)");
+        }
+
+        var eventItem = await _context.TEvents
+            .Include(e => e.TEventImages)
+            .FirstOrDefaultAsync(e => e.FEventId == eventId);
+
+        if (eventItem == null)
+        {
+            return NotFound("找不到該活動");
+        }
+
+        using (var ms = new MemoryStream())
+        {
+            await image.CopyToAsync(ms);
+            var imageBytes = ms.ToArray();
+
+            eventItem.TEventImages ??= new List<TEventImage>();
+
+            var existingImage = eventItem.TEventImages.FirstOrDefault();
+            if (existingImage != null)
+            {
+                existingImage.FEventImage = imageBytes;
+                existingImage.FImageType = image.ContentType;
+            }
+            else
+            {
+                eventItem.TEventImages.Add(new TEventImage
+                {
+                    FEventImage = imageBytes,
+                    FEventId = eventId,
+                    FImageType = image.ContentType
+                });
+            }
+
+            await _context.SaveChangesAsync();
+        }
+
+        // ✅ 回應圖片 URL (Base64)
+        var base64String = "data:" + image.ContentType + ";base64," + Convert.ToBase64String(eventItem.TEventImages.FirstOrDefault().FEventImage);
+
+        return Ok(new { imageUrl = base64String });
+    }
+
+
 }
