@@ -203,6 +203,4 @@ public class EventController : ControllerBase
 
         return Ok(new { imageUrl = base64String });
     }
-
-
 }
