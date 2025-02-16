@@ -1,4 +1,5 @@
 ﻿using System;
+using System.Collections;
 using System.Collections.Generic;
 using System.Drawing;
 using System.Drawing.Imaging;
@@ -434,51 +435,109 @@ namespace prjGroupB.Controllers
             }
         }
 
+        //取得賣家所有訂單
+        //GET: api/TOrders/getSellerOrder
+        [HttpGet("getSellerOrder")]
+        [Authorize]
+        public async Task<ActionResult<IEnumerable<TOrderSellerAllDTO>>> GetSellerOrders()
+        {
+            try
+            {
+                var sellerId = int.Parse(User.FindFirstValue(ClaimTypes.NameIdentifier));
+                //var sellerId = 3009; //測試用
+
+                var orders = await (from od in _context.TOrdersDetails
+                                    join p in _context.TProducts on od.FItemId equals p.FProductId
+                                    where p.FUserId == sellerId //只篩選該賣家
+                                    join o in _context.TOrders on od.FOrderId equals o.FOrderId
+                                    join os in _context.TOrderStatuses on o.FOrderStatusId equals os.FOrderStatusId
+                                    join u in _context.TUsers on o.FBuyerId equals u.FUserId
+                                    group new { o, os, od, u } by new
+                                    {
+                                        o.FOrderId,
+                                        o.FOrderStatusId,
+                                        o.FExtraInfo,
+                                        os.FStatusName,
+                                        o.FShipAddress,
+                                        o.FOrderDate,
+                                        u.FUserName
+                                    } into g
+                                    select new TOrderSellerAllDTO
+                                    {
+                                        FOrderId = g.Key.FOrderId,
+                                        FOrderStatusId = g.Key.FOrderStatusId,
+                                        FStatusName = g.Key.FStatusName,
+                                        FShipAddress = g.Key.FShipAddress,
+                                        FExtraInfo = g.Key.FExtraInfo,
+                                        FOrderDate = g.Key.FOrderDate,
+                                        FOrderAmount = g.Sum(x => (int)(x.od.FUnitPrice * x.od.FOrderQty)),
+                                        BuyerName = g.Key.FUserName,
+                                        StatusHistory = (from h in _context.TOrderStatusHistories
+                                                         where h.FOrderId == g.Key.FOrderId
+                                                         select new TOrderStatusHistoryDTO
+                                                         {
+                                                             FOrderStatusId = h.FOrderStatusId,
+                                                             FStatusName = h.FStatusName,
+                                                             FTimestamp = h.FTimestamp
+                                                         }).ToList()
+                                    }).ToListAsync();
+
+                if (orders == null || !orders.Any())
+                {
+                    return NotFound(new { message = "尚無銷售訂單" });
+                }
+                return Ok(orders);
+                
+            }
+            catch (Exception ex)
+            {
+                return StatusCode(500, new { message = "獲取銷售訂單時發生錯誤", error = ex.Message });
+            }
+        }
+
+        [HttpPut("shipOrder/{orderId}")]
+        public async Task<IActionResult> ShipOrder(int orderId, [FromBody] ShipOrderDTO shipOrderDTO)
+        {
+            try
+            {
+                //找訂單
+                var order = await _context.TOrders.FindAsync(orderId);
+                if (order == null) 
+                {
+                    return NotFound(new { message = "訂單不存在" });
+                }
+                //確定訂單狀態是1
+                if (order.FOrderStatusId == 1)
+                {
+                    order.FOrderStatusId = 2; //更新為待收貨
+                                          //新增狀態歷史紀錄
+                    var statusHistory = new TOrderStatusHistory
+                    {
+                        FOrderId = orderId,
+                        FOrderStatusId = 2,
+                        FStatusName = _context.TOrderStatuses.FirstOrDefault(s => s.FOrderStatusId == 2).FStatusName,
+                        FTimestamp = DateTime.Now
+                    };
+                    _context.TOrderStatusHistories.Add(statusHistory);
+                }
+                order.FExtraInfo = shipOrderDTO.extraInfo;
+ 
+                await _context.SaveChangesAsync();
+                return Ok(new { message = "訂單狀態已更新" }); 
+            }
+            catch (Exception ex)
+            {
+                return StatusCode(500, new { message = "更新訂單時發生錯誤", error = ex.Message });
+            }
+        }
+
+
+
+
 
         private bool TOrderExists(int id)
         {
             return _context.TOrders.Any(e => e.FOrderId == id);
         }
-
-        //原始
-
-        // GET: api/TOrders
-        //[HttpGet]
-        //public async Task<ActionResult<IEnumerable<TOrder>>> GetTOrders()
-        //{
-        //    return await _context.TOrders.ToListAsync();
-        //}
-
-        // GET: api/TOrders/5
-        //[HttpGet("{id}")]
-        //public async Task<ActionResult<TOrder>> GetTOrder(int id)
-        //{
-        //    var tOrder = await _context.TOrders.FindAsync(id);
-
-        //    if (tOrder == null)
-        //    {
-        //        return NotFound();
-        //    }
-
-        //    return tOrder;
-        //}
-
-
-        // DELETE: api/TOrders/5
-        //[HttpDelete("{id}")]
-        //public async Task<IActionResult> DeleteTOrder(int id)
-        //{
-        //    var tOrder = await _context.TOrders.FindAsync(id);
-        //    if (tOrder == null)
-        //    {
-        //        return NotFound();
-        //    }
-
-        //    _context.TOrders.Remove(tOrder);
-        //    await _context.SaveChangesAsync();
-
-        //    return NoContent();
-        //}
-
     }
 }
