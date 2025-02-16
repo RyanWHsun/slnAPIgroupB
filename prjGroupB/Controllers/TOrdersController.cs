@@ -1,5 +1,7 @@
 ﻿using System;
 using System.Collections.Generic;
+using System.Drawing;
+using System.Drawing.Imaging;
 using System.Linq;
 using System.Security.Claims;
 using System.Threading.Tasks;
@@ -304,6 +306,134 @@ namespace prjGroupB.Controllers
                     return 0; // 預設回傳 0 避免錯誤
             }
         }
+
+        //取得買家所有訂單
+        //GET: api/TOrders/getBuyerOrder
+        [HttpGet("getBuyerOrder")]
+        [Authorize]
+        public async Task<ActionResult<TOrderBuyerAllDTO>> GetBuyerOrders()
+        {
+            try
+            {
+                var buyerId = int.Parse(User.FindFirstValue(ClaimTypes.NameIdentifier));
+                //var buyerId = 3004;
+
+                var orders = await (from o in _context.TOrders
+                                    where o.FBuyerId == buyerId
+                                    join os in _context.TOrderStatuses on o.FOrderStatusId equals os.FOrderStatusId
+                                    join od in _context.TOrdersDetails on o.FOrderId equals od.FOrderId
+                                    join p in _context.TProducts on od.FItemId equals p.FProductId
+                                    join u in _context.TUsers on p.FUserId equals u.FUserId
+                                    group new { o, os, od, p, u } by new
+                                    {
+                                        o.FOrderId,
+                                        o.FOrderStatusId,
+                                        os.FStatusName,
+                                        o.FShipAddress,
+                                        o.FOrderDate
+                                    } into g
+                                    select new TOrderBuyerAllDTO
+                                    {
+                                        FOrderId = g.Key.FOrderId,
+                                        FOrderStatusId = g.Key.FOrderStatusId,
+                                        FStatusName = g.Key.FStatusName,
+                                        FShipAddress = g.Key.FShipAddress,
+                                        FOrderDate = g.Key.FOrderDate,
+                                        FOrderAmount = g.Sum(x => (int)(x.od.FUnitPrice * x.od.FOrderQty)),
+                                        SellerName = g.Select(x => x.u.FUserNickName).FirstOrDefault(),
+                                        FProductName = g.Select(x=>x.p.FProductName).ToList()
+                                    }).ToListAsync();
+
+                if(orders == null || orders.Count == 0)
+                {
+                    return NotFound(new { message = "尚無訂單，快去消費吧!" });
+                }
+                return Ok(orders);
+            }
+            catch (Exception ex) 
+            {
+                return StatusCode(500, new { message = "獲取訂單時發生錯誤", error = ex.Message });
+            }
+        }
+
+        //取得買家訂單明細
+        //GET: api/TOrders/details/{orderId}
+        [HttpGet("details/{orderId}")]
+        //[Authorize]
+        public async Task<ActionResult<TOrderDetailForBuyerDTO>> GetOrderDetails(int orderId)
+        {
+            try
+            {
+                var orderDetails = await (from od in _context.TOrdersDetails
+                                          where od.FOrderId == orderId
+                                          join p in _context.TProducts on od.FItemId equals p.FProductId
+                                          select new TOrderDetailDTO
+                                          {
+                                              FOrderDetailsId = od.FOrderDetailsId,
+                                              FItemId = p.FProductId,
+                                              FOrderQty = od.FOrderQty ?? 0,
+                                              FUnitPrice = od.FUnitPrice ?? 0,
+                                              FProductName = p.FProductName
+                                          }).ToListAsync();
+
+                //處理圖片
+                foreach (var detail in orderDetails)
+                {
+                    var productImage = await _context.TProductImages
+                        .Where(img => img.FProductId == detail.FItemId)
+                        .OrderBy(img => img.FProductId)
+                        .Select(img => img.FImage)
+                        .FirstOrDefaultAsync();
+
+                    if (productImage != null)
+                    {
+                        detail.FProductImage = ConvertToThumbnailBase64(productImage, 100, 100);
+                    }
+                }
+
+                var statusHistory = await _context.TOrderStatusHistories
+                    .Where(h => h.FOrderId == orderId)
+                    .OrderBy(h => h.FTimestamp)
+                    .Select(h => new TOrderStatusHistoryDTO
+                    {
+                        FOrderStatusId = h.FOrderStatusId,
+                        FStatusName = h.FStatusName,
+                        FTimestamp = h.FTimestamp
+                    }).ToListAsync();
+
+                return Ok(new TOrderDetailForBuyerDTO
+                {
+                    OrderDetails = orderDetails,
+                    StatusHistory = statusHistory,
+                });
+            }
+            catch (Exception ex) 
+            {
+                return StatusCode(500, new { message = "獲取訂單詳情時發生錯誤", error = ex.Message });
+            }
+        }
+        private static string ConvertToThumbnailBase64(byte[] fUserImage, int width, int height)
+        {
+            using (var ms = new MemoryStream(fUserImage))
+            {
+                // 使用 System.Drawing 讀取圖片
+                using (var image = Image.FromStream(ms))
+                {
+                    // 建立縮圖
+                    using (var thumbnail = image.GetThumbnailImage(width, height, () => false, IntPtr.Zero))
+                    {
+                        using (var thumbnailStream = new MemoryStream())
+                        {
+                            // 儲存縮圖到記憶體流
+                            thumbnail.Save(thumbnailStream, ImageFormat.Png);
+                            // 將縮圖轉換為 Base64
+                            return Convert.ToBase64String(thumbnailStream.ToArray());
+                        }
+                    }
+                }
+            }
+        }
+
 
         private bool TOrderExists(int id)
         {

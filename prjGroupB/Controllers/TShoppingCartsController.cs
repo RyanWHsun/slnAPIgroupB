@@ -209,13 +209,21 @@ namespace prjGroupB.Controllers
         [HttpGet("ItemCount")]
         public async Task <IActionResult> GetCartItemCount()
         {
-            var userId = int.Parse(User.FindFirstValue(ClaimTypes.NameIdentifier));
+            try
+            {
+                var userId = int.Parse(User.FindFirstValue(ClaimTypes.NameIdentifier));
 
-            int count = await _context.TShoppingCartItems
-                .Where(i => _context.TShoppingCarts.Any(c => c.FCartId == i.FCartId && c.FUserId == userId))
-                .CountAsync();  
+                int count = await _context.TShoppingCartItems
+                    .Where(i => _context.TShoppingCarts.Any(c => c.FCartId == i.FCartId && c.FUserId == userId))
+                    .CountAsync();
 
-            return Ok(new { count });
+                return Ok(new { count });
+            }
+            catch (Exception ex) 
+            {
+                return null;
+            }
+
         }
 
         // 單筆刪除
