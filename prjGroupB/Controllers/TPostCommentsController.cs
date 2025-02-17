@@ -33,16 +33,20 @@ namespace prjGroupB.Controllers
             {
                 return null;
             }
-            return _context.TPostComments.Where(c => c.FPostId == id).Select(e => new TPostCommentsDTO
-            {
-                FCommentId = e.FCommentId,
-                FPostId = e.FPostId,
-                FUserId = e.FUserId,
-                FContent = e.FContent,
-                FCreatedAt = e.FCreatedAt,
-                FUpdatedAt = e.FUpdatedAt,
-                FParentCommentId = e.FParentCommentId
-            });
+            return _context.TPostComments
+                .Where(c => c.FPostId == id)
+                .Include(e=>e.FUser)
+                .Select(e => new TPostCommentsDTO{
+                    FCommentId = e.FCommentId,
+                    FPostId = e.FPostId,
+                    FUserName = e.FUser.FUserName,
+                    FUserNickName = e.FUser.FUserNickName,
+                    FUserImage = Convert.ToBase64String(e.FUser.FUserImage),
+                    FContent = e.FContent,
+                    FCreatedAt = e.FCreatedAt,
+                    FUpdatedAt = e.FUpdatedAt,
+                    FParentCommentId = e.FParentCommentId
+                });
         }
 
         // PUT: api/TPostComments/5
