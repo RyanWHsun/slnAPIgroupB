@@ -60,18 +60,18 @@ namespace prjGroupB.Controllers
                 return NotFound(new { message = "活動不存在" });
             }
 
-            //// 檢查活動是否已達到報名人數上限
-            //int registeredCount = await _context.TEventRegistrationForms
-            //    .CountAsync(r => r.FEventId == registration.FEventId);
+            // 檢查活動是否已達到報名人數上限
+            int registeredCount = await _context.TEventRegistrationForms
+                .CountAsync(r => r.FEventId == registration.FEventId);
 
-            //if (eventItem.FMaxParticipants != null && registeredCount >= eventItem.FMaxParticipants)
-            //{
-            //    return BadRequest(new { message = "報名人數已滿，無法報名" });
-            //}
+            if (eventItem.FMaxParticipants != null && registeredCount >= eventItem.FMaxParticipants)
+            {
+                return BadRequest(new { message = "報名人數已滿，無法報名" });
+            }
 
-            //// 報名成功後，更新已報名人數
-            //eventItem.FCurrentParticipants = registeredCount + 1;
-            //await _context.SaveChangesAsync();
+            // 報名成功後，更新已報名人數
+            eventItem.FCurrentParticipants = registeredCount + 1;
+            await _context.SaveChangesAsync();
 
             // ✅ 檢查是否已報名
             var existingRegistration = await _context.TEventRegistrationForms
