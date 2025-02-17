@@ -80,6 +80,7 @@ public class EventController : ControllerBase
         }
 
         var eventImage = eventItem.TEventImages.FirstOrDefault();
+        string defaultImage = "https://your-cdn.com/default-event.jpg"; // ✅ 預設圖片 URL
 
         var result = new
         {
@@ -89,7 +90,6 @@ public class EventController : ControllerBase
             eventItem.FEventStartDate,
             eventItem.FEventEndDate,
 
-            // ✅ 統一變數名稱，確保前端可以讀取
             fLocation = eventItem.TEventLocations.Any()
                 ? eventItem.TEventLocations.Select(l => l.FLocationName).FirstOrDefault()
                 : "未提供",
@@ -107,10 +107,9 @@ public class EventController : ControllerBase
                 .Where(p => p.FPaymentStatus == "Paid")
                 .Sum(p => p.FAmount),
 
-            // ✅ 確保圖片回傳正確的 Base64 或 URL
             imageBase64 = eventImage != null
-                ? "data:image/png;base64," + Convert.ToBase64String(eventImage.FEventImage)
-                : null
+                ? "data:" + eventImage.FImageType + ";base64," + Convert.ToBase64String(eventImage.FEventImage)
+                : defaultImage // ✅ 如果沒有圖片，回傳預設圖片
         };
 
         return Ok(result);
