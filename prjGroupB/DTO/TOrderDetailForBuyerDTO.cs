@@ -24,4 +24,9 @@ namespace prjGroupB.DTO
         public DateTime? FTimestamp { get; set; } // 變更時間
     }
 
+    public class BuyerUpdateDTO
+    {
+        public required string FShipAddress { get; set; }
+    }
+
 }
