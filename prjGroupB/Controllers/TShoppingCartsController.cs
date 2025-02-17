@@ -98,16 +98,24 @@ namespace prjGroupB.Controllers
             {
                 return null;
             }
-            using (var context = new dbGroupBContext())
+            try
             {
-                byte[] imageBytes = fItemType switch
+                using (var context = new dbGroupBContext())
                 {
-                    "product" => context.TProductImages.FirstOrDefault(i => i.FProductId == fItemId).FImage,
-                    "attractionTicket" => context.TAttractionImages.FirstOrDefault(a => a.FAttractionId == (context.TAttractionTickets.FirstOrDefault(t => t.FAttractionTicketId == fItemId).FAttractionId)).FImage,
-                    "eventFee" => context.TEventImages.FirstOrDefault(p => p.FEventId == fItemId).FEventImage,
+                    byte[] imageBytes = fItemType switch
+                    {
+                        "product" => context.TProductImages.FirstOrDefault(i => i.FProductId == fItemId).FImage,
+                        "attractionTicket" => context.TAttractionImages.FirstOrDefault(a => a.FAttractionId == (context.TAttractionTickets.FirstOrDefault(t => t.FAttractionTicketId == fItemId).FAttractionId)).FImage,
+                        "eventFee" => context.TEventImages.FirstOrDefault(p => p.FEventId == fItemId).FEventImage,
 
-                };
-                return imageBytes != null ? ConvertToThumbnailBase64(imageBytes, 100, 100) : null;
+                    };
+                    return imageBytes != null ? ConvertToThumbnailBase64(imageBytes, 100, 100) : null;
+                }
+            }
+            catch (Exception ex) 
+            {
+                Console.WriteLine($"GetItemImage有ERROR: {ex.Message}");
+                return null;
             }
 
         }
