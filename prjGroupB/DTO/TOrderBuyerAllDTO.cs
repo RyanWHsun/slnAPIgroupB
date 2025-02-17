@@ -9,7 +9,6 @@
         public DateTime? FOrderDate { get; set; }
         public int FOrderAmount { get; set; }
         public string SellerName { get; set; }
-        public string FExtraInfo { get; set; }
         public required List<string> FProductName { get; set; }
     }
 }

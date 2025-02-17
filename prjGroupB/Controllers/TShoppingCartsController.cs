@@ -269,6 +269,10 @@ namespace prjGroupB.Controllers
             return Ok(new { message = "購物車項目已移除" });
         }
 
+        //抓取會員資料
+        //GET: 
+
+
 
         private bool TShoppingCartExists(int id)
         {
