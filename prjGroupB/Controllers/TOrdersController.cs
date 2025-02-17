@@ -527,7 +527,7 @@ namespace prjGroupB.Controllers
             }
             catch (Exception ex)
             {
-                return StatusCode(500, new { message = "更新訂單時發生錯誤!!", error = ex.Message });
+                return StatusCode(500, new { message = "更新訂單時發生錯誤!", error = ex.Message });
             }
         }
 
