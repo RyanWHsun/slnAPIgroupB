@@ -2,9 +2,7 @@
 using Microsoft.EntityFrameworkCore;
 using prjGroupB.Models;
 using System.Linq;
-using Microsoft.AspNetCore.Http;
 using System.Threading.Tasks;
-using System.IO;
 using System.Collections.Generic;
 
 [ApiController]
@@ -18,41 +16,39 @@ public class EventController : ControllerBase
         _context = context;
     }
 
-    // ✅ **取得所有活動 (包含天數、人數、報名費、圖片)**
+    // ✅ **取得所有活動 (包含篩選)**
     [HttpGet]
     public async Task<ActionResult<IEnumerable<object>>> GetEvents()
     {
         try
         {
             var events = await _context.TEvents
-    .Include(e => e.TEventLocations)
-    .Include(e => e.TEventImages)
-    .Include(e => e.TEventSchedules)
-    .Include(e => e.TEventRegistrationForms)
-        .ThenInclude(r => r.TEventPayments)
-    .Select(e => new
-    {
-        e.FEventId,
-        e.FEventName,
-        e.FEventDescription,
-        e.FEventStartDate,
-        e.FEventEndDate,
-        FLocation = e.TEventLocations.FirstOrDefault() != null
-            ? e.TEventLocations.FirstOrDefault().FLocationName
-            : "未知地點",
-        FParticipant = e.TEventRegistrationForms
-            .Count(r => r.FRegistrationStatus == "Confirmed"),
-        RegistrationFee = e.TEventRegistrationForms
-            .SelectMany(r => r.TEventPayments)
-            .Where(p => p.FPaymentStatus == "Paid")
-            .Sum(p => p.FAmount),
-        ImageBase64 = e.TEventImages.Any()
-            ? "data:image/png;base64," + Convert.ToBase64String(e.TEventImages.First().FEventImage)
-            : null
-    })
-    .ToListAsync();
-
-            Console.WriteLine($"📌 API 回傳資料: {System.Text.Json.JsonSerializer.Serialize(events)}");
+                .Include(e => e.TEventLocations)
+                .Include(e => e.TEventImages)
+                .Include(e => e.TEventSchedules)
+                .Include(e => e.TEventRegistrationForms)
+                    .ThenInclude(r => r.TEventPayments)
+                .Select(e => new
+                {
+                    e.FEventId,
+                    e.FEventName,
+                    e.FEventDescription,
+                    e.FEventStartDate,
+                    e.FEventEndDate,
+                    FLocation = e.TEventLocations.Any()
+                        ? e.TEventLocations.FirstOrDefault().FLocationName
+                        : "未知地點",
+                    FParticipant = e.TEventRegistrationForms
+                        .Count(r => r.FRegistrationStatus == "Confirmed"),
+                    RegistrationFee = e.TEventRegistrationForms
+                        .SelectMany(r => r.TEventPayments)
+                        .Where(p => p.FPaymentStatus == "Paid")
+                        .Sum(p => p.FAmount),
+                    ImageBase64 = e.TEventImages.Any()
+                        ? "data:image/png;base64," + Convert.ToBase64String(e.TEventImages.First().FEventImage)
+                        : null
+                })
+                .ToListAsync();
 
             return Ok(events);
         }
@@ -71,7 +67,7 @@ public class EventController : ControllerBase
             .Include(e => e.TEventImages)
             .Include(e => e.TEventSchedules)
             .Include(e => e.TEventRegistrationForms)
-                .ThenInclude(r => r.TEventPayments) // 取得報名費
+                .ThenInclude(r => r.TEventPayments)
             .FirstOrDefaultAsync(e => e.FEventId == id);
 
         if (eventItem == null)
@@ -89,117 +85,19 @@ public class EventController : ControllerBase
             eventItem.FEventDescription,
             eventItem.FEventStartDate,
             eventItem.FEventEndDate,
-
             fLocation = eventItem.TEventLocations.Any()
-                ? eventItem.TEventLocations.Select(l => l.FLocationName).FirstOrDefault()
+                ? eventItem.TEventLocations.FirstOrDefault().FLocationName
                 : "未提供",
-
-            FDuration = eventItem.TEventSchedules.Any()
-                ? (int)((eventItem.TEventSchedules.Max(s => (DateTime?)s.FEndTime).GetValueOrDefault()
-                        - eventItem.TEventSchedules.Min(s => (DateTime?)s.FStartTime).GetValueOrDefault())
-                        .TotalDays + 1)
-                : 1,
-
             FParticipant = eventItem.TEventRegistrationForms.Count(),
-
             RegistrationFee = eventItem.TEventRegistrationForms
                 .SelectMany(r => r.TEventPayments)
                 .Where(p => p.FPaymentStatus == "Paid")
                 .Sum(p => p.FAmount),
-
             imageBase64 = eventImage != null
-                ? "data:" + eventImage.FImageType + ";base64," + Convert.ToBase64String(eventImage.FEventImage)
-                : defaultImage // ✅ 如果沒有圖片，回傳預設圖片
+                ? "data:image/png;base64," + Convert.ToBase64String(eventImage.FEventImage)
+                : defaultImage
         };
 
         return Ok(result);
-    }
-
-    // ✅ **新增活動**
-    [HttpPost]
-    public async Task<IActionResult> CreateEvent([FromForm] TEventDTO eventDto, IFormFile image)
-    {
-        if (eventDto == null || string.IsNullOrEmpty(eventDto.Name))
-        {
-            return BadRequest(new { message = "活動資訊不完整" });
-        }
-
-        var newEvent = new TEvent
-        {
-            FEventName = eventDto.Name,
-            FEventDescription = eventDto.Description,
-            FEventStartDate = eventDto.StartDate,
-            FEventEndDate = eventDto.EndDate
-        };
-
-        _context.TEvents.Add(newEvent);
-        await _context.SaveChangesAsync();
-
-        if (image != null)
-        {
-            using var memoryStream = new MemoryStream();
-            await image.CopyToAsync(memoryStream);
-
-            var eventImage = new TEventImage
-            {
-                FEventId = newEvent.FEventId,
-                FEventImage = memoryStream.ToArray(),
-                FImageType = image.ContentType
-            };
-
-            _context.TEventImages.Add(eventImage);
-            await _context.SaveChangesAsync();
-        }
-
-        return Ok(new { message = "活動新增成功", eventId = newEvent.FEventId });
-    }
-
-    [HttpPost("UploadEventImage/{eventId}")]
-    public async Task<IActionResult> UploadEventImage(int eventId, IFormFile image)
-    {
-        if (image == null || !image.ContentType.StartsWith("image/"))
-        {
-            return BadRequest("請提供有效的圖片 (僅支援 JPG/PNG 格式)");
-        }
-
-        var eventItem = await _context.TEvents
-            .Include(e => e.TEventImages)
-            .FirstOrDefaultAsync(e => e.FEventId == eventId);
-
-        if (eventItem == null)
-        {
-            return NotFound("找不到該活動");
-        }
-
-        using (var ms = new MemoryStream())
-        {
-            await image.CopyToAsync(ms);
-            var imageBytes = ms.ToArray();
-
-            eventItem.TEventImages ??= new List<TEventImage>();
-
-            var existingImage = eventItem.TEventImages.FirstOrDefault();
-            if (existingImage != null)
-            {
-                existingImage.FEventImage = imageBytes;
-                existingImage.FImageType = image.ContentType;
-            }
-            else
-            {
-                eventItem.TEventImages.Add(new TEventImage
-                {
-                    FEventImage = imageBytes,
-                    FEventId = eventId,
-                    FImageType = image.ContentType
-                });
-            }
-
-            await _context.SaveChangesAsync();
-        }
-
-        // ✅ 回應圖片 URL (Base64)
-        var base64String = "data:" + image.ContentType + ";base64," + Convert.ToBase64String(eventItem.TEventImages.FirstOrDefault().FEventImage);
-
-        return Ok(new { imageUrl = base64String });
     }
 }
