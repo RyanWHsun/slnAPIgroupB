@@ -654,7 +654,7 @@ namespace prjGroupB.Controllers
             {
                 // 若出現錯誤，回滾交易
                 await transaction.RollbackAsync();
-                return StatusCode(500, new { message = "更新訂單時發生錯誤，請洽客服", error = ex.Message });
+                return StatusCode(500, new { message = "更新訂單時發生錯誤，請洽客服。", error = ex.Message });
             }
         }
 
