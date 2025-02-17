@@ -113,8 +113,16 @@ namespace prjGroupB.Controllers
                             return BadRequest(new { message = $"【{product.FProductName}】庫存只剩{product.FStock}，請修改數量後再購買" });
                         }
                         product.FStock -= item.FQuantity;
+
+                        // 如果庫存為 0，將商品設為下架
+                        if (product.FStock <= 0)
+                        {
+                            product.FIsOnSales = false;
+                        } 
+                        _context.TProducts.Update(product); 
                     }
                 }
+                await _context.SaveChangesAsync(); //存檔一次以防有商品要修改狀態
                 var createdOrders = new List<TOrder>();
 
                 //分組處理商品(依sellerId分組)
@@ -174,14 +182,13 @@ namespace prjGroupB.Controllers
                                 _context.TShoppingCartItems.Remove(cartItemToRemove);
                             }
                         }
-
                         //新增訂單歷史紀錄
                         var orderHistory = new TOrderStatusHistory
                         {
                             FOrderId = order.FOrderId,
                             FOrderStatusId = 1, //待出貨
                             FStatusName = _context.TOrderStatuses.FirstOrDefault(s => s.FOrderStatusId == 1).FStatusName,
-                            FTimestamp = DateTime.Now,
+                            FTimestamp = DateTime.Now
                         };
                         _context.TOrderStatusHistories.Add(orderHistory);
 
@@ -192,8 +199,8 @@ namespace prjGroupB.Controllers
                             {
                                 FUserId = buyerId,
                                 FAmountChange=(int)(-orderTotal),// 扣款，確保轉換為 int
-                                FChangeLog=$"付款：訂單編號{order.FOrderId}",
-                                FChangeTime=DateTime.Now,
+                                FChangeLog=$"付款：訂單編號#{order.FOrderId}",
+                                FChangeTime =DateTime.Now,
                             };
                             _context.TWallets.Add(walletTransaction);
                         }
@@ -329,6 +336,7 @@ namespace prjGroupB.Controllers
                                     {
                                         o.FOrderId,
                                         o.FOrderStatusId,
+                                        o.FExtraInfo,
                                         os.FStatusName,
                                         o.FShipAddress,
                                         o.FOrderDate
@@ -338,6 +346,7 @@ namespace prjGroupB.Controllers
                                         FOrderId = g.Key.FOrderId,
                                         FOrderStatusId = g.Key.FOrderStatusId,
                                         FStatusName = g.Key.FStatusName,
+                                        FExtraInfo = g.Key.FExtraInfo,
                                         FShipAddress = g.Key.FShipAddress,
                                         FOrderDate = g.Key.FOrderDate,
                                         FOrderAmount = g.Sum(x => (int)(x.od.FUnitPrice * x.od.FOrderQty)),
@@ -495,12 +504,14 @@ namespace prjGroupB.Controllers
             }
         }
 
+
+        //賣家更新訂單狀態
+        //PUT :api/TOrders/shipOrder/{orderId}
         [HttpPut("shipOrder/{orderId}")]
         public async Task<IActionResult> ShipOrder(int orderId, [FromBody] ShipOrderDTO shipOrderDTO)
         {
             try
-            {
-                //找訂單
+            {   //找訂單
                 var order = await _context.TOrders.FindAsync(orderId);
                 if (order == null) 
                 {
@@ -531,8 +542,121 @@ namespace prjGroupB.Controllers
             }
         }
 
+        //買家更新訂單
+        //PUT :api/TOrders/buyerUpdateAddress/{orderId}
+        [HttpPut("buyerUpdateAddress/{orderId}")]
+        public async Task<IActionResult> BuyerUpdateAddress(int orderId, [FromBody] BuyerUpdateDTO? buyerUpdate)
+        {
+            try
+            {
+                // 檢查 buyerUpdate 是否為 null
+                if (buyerUpdate == null || string.IsNullOrEmpty(buyerUpdate.FShipAddress))
+                {
+                    return BadRequest(new { message = "請提供有效的地址資訊" });
+                }
+                //找訂單
+                var order = await _context.TOrders.FindAsync(orderId);
+                if (order == null)
+                {
+                    return NotFound(new { message = "訂單不存在" });
+                }
+                //確定訂單狀態為1
+                if(order.FOrderStatusId != 1)
+                {
+                    return BadRequest(new { message = "此訂單地址無法進行更新" });
+                }
+                //更新地址
+                order.FShipAddress=buyerUpdate.FShipAddress;
+                await _context.SaveChangesAsync();
+                return Ok(new { message="地址已變更完畢!" });
 
+            }
+            catch (Exception ex)
+            {
+                return StatusCode(500, new { message = "更新訂單時發生錯誤", error = ex.Message });
 
+            }
+        }
+
+        //買家更新訂單
+        //PUT :api/TOrders/completeOrder/{orderId}
+        [HttpPut("completeOrder/{orderId}")]
+        public async Task<IActionResult> CompleteOrder(int orderId)
+        {
+            using var transaction = await _context.Database.BeginTransactionAsync(); //開始交易
+            try
+            {
+                //找訂單
+                var order = await _context.TOrders.FindAsync(orderId);
+                if (order == null)
+                {
+                    return NotFound(new { message = "訂單不存在" });
+                }
+
+                if (order.FOrderStatusId == 2)
+                {
+                    order.FOrderStatusId = 3;  //訂單改為3已完成
+                    var statusHistory = new TOrderStatusHistory //新增狀態紀錄
+                    {
+                        FOrderId = orderId,
+                        FOrderStatusId = 3,
+                        FStatusName = _context.TOrderStatuses.FirstOrDefault(s => s.FOrderStatusId == 3).FStatusName,
+                        FTimestamp = DateTime.Now,
+                    };
+                    _context.TOrderStatusHistories.Add(statusHistory);
+
+                    //計算訂單金額 
+                    var orderDetails = await _context.TOrdersDetails
+                        .Where(d => d.FOrderId == orderId && d.FItemType == "product")
+                        .ToListAsync();
+
+                    decimal totalAmount = orderDetails.Sum(d => (d.FUnitPrice ?? 0) * (d.FOrderQty ?? 0));
+                    decimal sellerAmount = totalAmount * 0.98m; //扣除手續費2%
+
+                    //找商品Id
+                    var productId = orderDetails.FirstOrDefault()?.FItemId;
+                    if(productId == null)
+                    {
+                        await transaction.RollbackAsync();
+                        return BadRequest(new { message = "Error456:訂單更新失敗，請洽客服" });
+                    }
+
+                    //賣家Id
+                    var sellerId =await _context.TProducts
+                        .Where(p=>p.FProductId == productId)
+                        .Select(p => p.FUserId)
+                        .FirstOrDefaultAsync();
+                    if (sellerId == null) 
+                    {
+                        await transaction.RollbackAsync();
+                        return BadRequest(new { message = "Error789:訂單更新失敗，請洽客服" });
+                    }
+
+                    var walletTransaction = new TWallet
+                    {
+                        FUserId = sellerId.Value,
+                        FAmountChange = (int)(sellerAmount),
+                        FChangeLog = $"收款：訂單編號#{orderId}，扣除2%手續費後金額 {(int)sellerAmount} 元",
+                        FChangeTime = DateTime.Now,
+                    };
+                    _context.TWallets.Add(walletTransaction);
+                    await _context.SaveChangesAsync();
+                    await transaction.CommitAsync();
+                    return Ok(new { message = "訂單已完成,感謝購買!" });
+                }
+                else
+                {
+                    // 如果訂單狀態既不是1也不是2，回傳一個預設的訊息
+                    return BadRequest(new { message = "此訂單狀態無法進行更新" });
+                }
+            }
+            catch (Exception ex)
+            {
+                // 若出現錯誤，回滾交易
+                await transaction.RollbackAsync();
+                return StatusCode(500, new { message = "更新訂單時發生錯誤，請洽客服", error = ex.Message });
+            }
+        }
 
 
         private bool TOrderExists(int id)
