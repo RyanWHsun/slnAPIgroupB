@@ -1,4 +1,5 @@
-﻿using Microsoft.AspNetCore.Http;
+﻿using Microsoft.AspNetCore.Authorization;
+using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Identity.Data;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.IdentityModel.Tokens;
@@ -19,6 +20,25 @@ namespace prjGroupB.Controllers {
             _context = context;
         }
 
+        //檢查用 戶是否登入
+        [HttpGet("checkAuth")]
+
+        public IActionResult CheckAuth()
+        {
+            var token = Request.Cookies["jwt_token"];  // 取得 HTTP Only Cookie 中的 token
+
+            if (string.IsNullOrEmpty(token))
+            {
+                return Unauthorized(new { message = "用戶未登入" });
+            }else
+            {
+                return Ok(new { message = "用戶已登入" });
+            }
+
+        }
+
+
+        //登入
         [HttpPost("login")]
         public IActionResult Login([FromBody] UserLoginRequest request)
         {
@@ -48,7 +68,11 @@ namespace prjGroupB.Controllers {
                 return Unauthorized(new { Message = "登入失敗，帳號或密碼錯誤" });
             }
 
-
+            //擋住RankId == 2
+            if (user.FUserRankId == 2)
+            {
+                return Unauthorized(new { Message = "登入失敗，此帳號已註銷，請洽客服" });  
+            }
 
             //產生JWT token
             var token = GenerateJwtToken(user);
@@ -64,19 +88,23 @@ namespace prjGroupB.Controllers {
             return Ok(new { Message = "登入成功"});
         }
 
-
+        //登出
         [HttpPost("logout")]
         public IActionResult LogOut()
         {
-            // 1️ 清除 HttpOnly Cookie
-            Response.Cookies.Append("jwt_token","",new CookieOptions
+            //1️ 清除 HttpOnly Cookie
+            Response.Cookies.Append("jwt_token", "", new CookieOptions
             {
                 HttpOnly = true,
-                Secure = false, // 本機開發時設為 false，正式環境應設為 true
-                SameSite = SameSiteMode.Lax,
+                Secure = true, // 本機開發時設為 false，正式環境應設為 true
+                SameSite = SameSiteMode.None,
                 Path = "/", // 確保 Cookie 被刪除
                 Expires = DateTime.UtcNow.AddYears(-1) // 立即讓 Cookie 過期
             });
+
+            //Response.Cookies.Delete("jwt_token");
+
+
             // 2️ 返回成功訊息
             return Ok(new { Message = "登出成功" });
         }

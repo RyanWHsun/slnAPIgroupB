@@ -380,16 +380,28 @@ namespace prjGroupB.Controllers
         [HttpDelete("{id}")]
         public async Task<IActionResult> DeleteTProduct(int id)
         {
-            var product = await _context.TProducts
+            try
+            {
+                var product = await _context.TProducts
                 .Include(p => p.TProductImages)
                 .FirstOrDefaultAsync(p=>p.FProductId==id);
 
-            if (product == null)
-            {
-                return NotFound(new { message = "刪除商品失敗!" });
-            }
-            try
-            {
+                if (product == null)
+                {
+                    return NotFound(new { message = "刪除商品失敗!" });
+                }
+
+                // 檢查是否有符合條件的訂單明細
+                var orderDetails = await _context.TOrdersDetails
+                    .Where(i => i.FItemType == "product" && i.FItemId == id)
+                    .ToListAsync();
+
+                if (orderDetails.Any())
+                {
+                    // 如果有符合條件的訂單明細，則不允許刪除
+                    return BadRequest(new { message = "此商品已經被訂單使用，無法刪除,只可改為下架" });
+                }
+
                 if(product.TProductImages != null && product.TProductImages.Any())
                 {
                     _context.TProductImages.RemoveRange(product.TProductImages); ;
