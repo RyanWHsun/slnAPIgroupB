@@ -42,16 +42,16 @@ builder.Services.AddAuthentication(JwtBearerDefaults.AuthenticationScheme)
     });
 
 // ? 修正 CORS 設定
-var MyAllowSpecificOrigins = "_myAllowSpecificOrigins";
+var MyAllowSpecificOrigins = "AllowFrontend";
 
 builder.Services.AddCors(options =>
 {
     options.AddPolicy(MyAllowSpecificOrigins, policy =>
     {
         policy.WithOrigins("http://localhost:4200")
+              .AllowCredentials()// 允許攜帶 Cookie
               .AllowAnyHeader()
-              .AllowAnyMethod()
-              .AllowCredentials(); // 允許攜帶 Cookie
+              .AllowAnyMethod(); 
     });
 });
 

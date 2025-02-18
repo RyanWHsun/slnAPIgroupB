@@ -11,6 +11,7 @@
         public int? FQuantity { get; set; }
         public decimal? FPrice { get; set; }
         public string? FSingleImage { get; set; }
+        public int? FSellerId { get; set; } //賣家ID
         public string? FSellerName { get; set; } //賣家名稱
         public int? FProductStock { get; set; } //商品庫存
     }
