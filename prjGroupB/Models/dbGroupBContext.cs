@@ -437,6 +437,14 @@ public partial class dbGroupBContext : DbContext
                 .HasMaxLength(250)
                 .HasColumnName("fEventURL");
             entity.Property(e => e.FUserId).HasColumnName("fUserId");
+            entity.Property(e => e.FcurrentParticipants)
+                .HasDefaultValue(0)
+                .HasColumnName("FCurrentParticipants");
+            entity.Property(e => e.FeventDuration).HasColumnName("FEventDuration");
+            entity.Property(e => e.FeventFee)
+                .HasColumnType("decimal(10, 2)")
+                .HasColumnName("FEventFee");
+            entity.Property(e => e.FmaxParticipants).HasColumnName("FMaxParticipants");
         });
 
         modelBuilder.Entity<TEventCategory>(entity =>
