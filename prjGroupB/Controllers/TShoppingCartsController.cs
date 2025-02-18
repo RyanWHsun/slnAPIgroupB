@@ -102,13 +102,28 @@ namespace prjGroupB.Controllers
             {
                 using (var context = new dbGroupBContext())
                 {
-                    byte[] imageBytes = fItemType switch
-                    {
-                        "product" => context.TProductImages.FirstOrDefault(i => i.FProductId == fItemId).FImage,
-                        "attractionTicket" => context.TAttractionImages.FirstOrDefault(a => a.FAttractionId == (context.TAttractionTickets.FirstOrDefault(t => t.FAttractionTicketId == fItemId).FAttractionId)).FImage,
-                        "eventFee" => context.TEventImages.FirstOrDefault(p => p.FEventId == fItemId).FEventImage,
+                    byte[] imageBytes = null;
 
-                    };
+                    // 根據不同的項目類型選擇對應的圖片
+                    switch (fItemType)
+                    {
+                        case "product":
+                            var productImage = context.TProductImages.FirstOrDefault(i => i.FProductId == fItemId);
+                            imageBytes = productImage?.FImage; // 如果找不到圖片，imageBytes 會保持為 null
+                            break;
+                        case "attractionTicket":
+                            var attractionTicket = context.TAttractionTickets.FirstOrDefault(t => t.FAttractionTicketId == fItemId);
+                            if (attractionTicket != null)
+                            {
+                                var attractionImage = context.TAttractionImages.FirstOrDefault(a => a.FAttractionId == attractionTicket.FAttractionId);
+                                imageBytes = attractionImage?.FImage;
+                            }
+                            break;
+                        case "eventFee":
+                            var eventImage = context.TEventImages.FirstOrDefault(p => p.FEventId == fItemId);
+                            imageBytes = eventImage?.FEventImage;
+                            break;
+                    }
                     return imageBytes != null ? ConvertToThumbnailBase64(imageBytes, 100, 100) : null;
                 }
             }
