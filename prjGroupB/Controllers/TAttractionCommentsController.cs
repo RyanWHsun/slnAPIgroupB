@@ -1,7 +1,9 @@
 ﻿using System;
 using System.Collections.Generic;
 using System.Linq;
+using System.Security.Claims;
 using System.Threading.Tasks;
+using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
@@ -144,6 +146,37 @@ namespace prjGroupB.Controllers {
             return attractionCommentDTOs;
         }
 
+        // get an user info
+        [HttpGet("commenter")]
+        [Authorize]
+        public async Task<TUserDTO> GetCommenterInfo() {
+            // FindFirstValue(): 從 User.Claims 查找 第一個符合 ClaimTypes.NameIdentifier 的 Claim，並回傳它的值。
+            // ClaimTypes.NameIdentifier 是一個 標準的 Claim 類型，表示「使用者的唯一識別碼」（通常是 UserId）。
+            var userIdValue = User.FindFirstValue(ClaimTypes.NameIdentifier);
+            int userId = int.TryParse(userIdValue, out var parsedId) ? parsedId : 0;
+            if (userId == 0) return null;
+
+            var user = await _context.TUsers.FindAsync(userId);
+            if (user == null) return null;
+
+            var userDto = new TUserDTO {
+                FUserId = user.FUserId,
+                FUserRankId = user.FUserRankId.HasValue ? user.FUserRankId.Value : 0,
+                FUserName = user.FUserName,
+                FUserImage = user.FUserImage != null ? Convert.ToBase64String(user.FUserImage) : null,
+                FUserNickName = user.FUserNickName,
+                FUserSex = user.FUserSex,
+                FUserBirthday = user.FUserBirthday,
+                FUserPhone = user.FUserPhone,
+                FUserEmail = user.FUserEmail,
+                FUserAddress = user.FUserAddress,
+                FUserComeDate = user.FUserComeDate ?? DateTime.Now,
+                FUserPassword = user.FUserPassword
+            };
+
+            return userDto;
+        }
+
         // PUT: api/TAttractionComments/5
         // To protect from overposting attacks, see https://go.microsoft.com/fwlink/?linkid=2123754
         //[HttpPut("{id}")]
@@ -184,11 +217,21 @@ namespace prjGroupB.Controllers {
         // POST: api/TAttractionComments
         // To protect from overposting attacks, see https://go.microsoft.com/fwlink/?linkid=2123754
         [HttpPost]
-        public async Task<TAttractionCommentDTO> PostTAttractionComment(TAttractionCommentDTO attractionCommentDTO) {
+        [Authorize]
+        public async Task<IActionResult> PostTAttractionComment([FromBody] TAttractionCommentDTO attractionCommentDTO) {
+            // FindFirstValue(): 從 User.Claims 查找 第一個符合 ClaimTypes.NameIdentifier 的 Claim，並回傳它的值。
+            // ClaimTypes.NameIdentifier 是一個 標準的 Claim 類型，表示「使用者的唯一識別碼」（通常是 UserId）。
+            var userIdValue = User.FindFirstValue(ClaimTypes.NameIdentifier);
+            int userId = int.TryParse(userIdValue, out var parsedId) ? parsedId : 0;
+
+            if (attractionCommentDTO == null || userId == 0) {
+                return BadRequest("無效的請求");
+            }
+
             TAttractionComment comment = new TAttractionComment {
                 FCommentId = 0,
                 FAttractionId = attractionCommentDTO.FAttractionId,
-                FUserId = attractionCommentDTO.FUserId,
+                FUserId = userId,
                 FRating = attractionCommentDTO.FRating,
                 FComment = attractionCommentDTO.FComment,
                 FCreatedDate = DateTime.Now
@@ -197,9 +240,10 @@ namespace prjGroupB.Controllers {
             _context.TAttractionComments.Add(comment);
             await _context.SaveChangesAsync();
 
-            attractionCommentDTO.FCommentId = comment.FCommentId;// 更新 attractionCommentDTO 的 FCommentId
-            return attractionCommentDTO;
+            attractionCommentDTO.FCommentId = comment.FCommentId;
+            return Ok(attractionCommentDTO);
         }
+
 
         // DELETE: api/TAttractionComments/5
         //[HttpDelete("{id}")]
