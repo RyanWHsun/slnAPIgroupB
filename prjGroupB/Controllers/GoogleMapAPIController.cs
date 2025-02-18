@@ -28,10 +28,20 @@ namespace prjGroupB.Controllers {
             return Content(response, "application/json");
         }
 
-        [HttpGet("load-map")]
-        public IActionResult GetGoogleMapsApiKey() {
-            var apiKey = _config["GoogleMaps:ApiKey"];
-            return Ok(new { apiKey });
+        // 取得地圖資料
+        [HttpGet("getMapData")]
+        public async Task<IActionResult> GetMapData() {
+            string apiKey = _config["GoogleMaps:ApiKey"];
+            if (apiKey == null || apiKey=="") {
+                return BadRequest("API Key 未設定");
+            }
+            // callback=initMap 告訴 Google Maps API 載入完成後要執行 window.initMap()。
+            string requestUrl = $"https://maps.googleapis.com/maps/api/js?key={apiKey}&callback=initMap&language=zh-TW";
+
+            // _httpClient 是 HttpClient 物件，用來發送 HTTP 請求。
+            // GetStringAsync(requestUrl)：發送 GET 請求至 Google Maps API，並取得回應內容（JavaScript 代碼）。
+            var response = await _httpClient.GetStringAsync(requestUrl);
+            return Content(response, "application/javascript");
         }
     }
 }
