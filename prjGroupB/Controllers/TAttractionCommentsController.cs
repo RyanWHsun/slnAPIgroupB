@@ -183,8 +183,30 @@ namespace prjGroupB.Controllers {
 
         // POST: api/TAttractionComments
         // To protect from overposting attacks, see https://go.microsoft.com/fwlink/?linkid=2123754
+        //[HttpPost]
+        //public async Task<TAttractionCommentDTO> PostTAttractionComment(TAttractionCommentDTO attractionCommentDTO) {
+        //    TAttractionComment comment = new TAttractionComment {
+        //        FCommentId = 0,
+        //        FAttractionId = attractionCommentDTO.FAttractionId,
+        //        FUserId = attractionCommentDTO.FUserId,
+        //        FRating = attractionCommentDTO.FRating,
+        //        FComment = attractionCommentDTO.FComment,
+        //        FCreatedDate = DateTime.Now
+        //    };
+
+        //    _context.TAttractionComments.Add(comment);
+        //    await _context.SaveChangesAsync();
+
+        //    attractionCommentDTO.FCommentId = comment.FCommentId;// 更新 attractionCommentDTO 的 FCommentId
+        //    return attractionCommentDTO;
+        //}
+
         [HttpPost]
-        public async Task<TAttractionCommentDTO> PostTAttractionComment(TAttractionCommentDTO attractionCommentDTO) {
+        public async Task<IActionResult> PostTAttractionComment([FromBody] TAttractionCommentDTO attractionCommentDTO) {
+            if (attractionCommentDTO == null) {
+                return BadRequest("無效的請求");
+            }
+
             TAttractionComment comment = new TAttractionComment {
                 FCommentId = 0,
                 FAttractionId = attractionCommentDTO.FAttractionId,
@@ -197,9 +219,10 @@ namespace prjGroupB.Controllers {
             _context.TAttractionComments.Add(comment);
             await _context.SaveChangesAsync();
 
-            attractionCommentDTO.FCommentId = comment.FCommentId;// 更新 attractionCommentDTO 的 FCommentId
-            return attractionCommentDTO;
+            attractionCommentDTO.FCommentId = comment.FCommentId;
+            return Ok(attractionCommentDTO);
         }
+
 
         // DELETE: api/TAttractionComments/5
         //[HttpDelete("{id}")]
