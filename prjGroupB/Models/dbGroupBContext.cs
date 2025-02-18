@@ -107,6 +107,8 @@ public partial class dbGroupBContext : DbContext
 
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
+        modelBuilder.UseCollation("Chinese_Taiwan_Stroke_CI_AS");
+
         modelBuilder.Entity<TAttraction>(entity =>
         {
             entity.HasKey(e => e.FAttractionId).HasName("PK__tAttract__F9B18832182D39AF");
