@@ -160,5 +160,13 @@ namespace prjGroupB.Controllers
             };
             return userDTO;
         }
+
+        [HttpGet("loginUserId")]
+        [Authorize]
+        public int GetLoginUserId()
+        {
+            int userId = int.Parse(User.FindFirstValue(ClaimTypes.NameIdentifier));
+            return userId;
+        }
     }
 }

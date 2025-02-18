@@ -40,6 +40,7 @@ namespace prjGroupB.Controllers
                 .Select(e => new TPostCommentsDTO{
                     FCommentId = e.FCommentId,
                     FPostId = e.FPostId,
+                    FUserId = e.FUser.FUserId,
                     FUserName = e.FUser.FUserName,
                     FUserNickName = e.FUser.FUserNickName,
                     FUserImage = Convert.ToBase64String(e.FUser.FUserImage),
