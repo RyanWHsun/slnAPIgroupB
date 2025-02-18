@@ -28,7 +28,7 @@ namespace prjGroupB.Controllers
 
 
 
-        //查詢全部
+        //查詢全部用戶
         // GET: api/TUsers
         [HttpGet]
         [Authorize]
@@ -52,11 +52,13 @@ namespace prjGroupB.Controllers
                 }
                 );
         }
-        //查詢
-        // GET: api/TUsers/5
-        [HttpGet("{id}")]
+
+
+        //查詢登入者
+        // GET: api/TUsers
+        [HttpGet("loginUser")]
         [Authorize]
-        public async Task<ActionResult<TUserDTO>> GetTUser(int id)
+        public async Task<ActionResult<TUserDTO>> GetTUser()
         {
 
             //尋找登入者ID
@@ -91,10 +93,10 @@ namespace prjGroupB.Controllers
         }
 
 
-        //修改
-        // PUT: api/TUsers/5
+        //修改登入者
+        // PUT: api/TUsers
         // To protect from overposting attacks, see https://go.microsoft.com/fwlink/?linkid=2123754
-        [HttpPut("{id}")]
+        [HttpPut("loginUser")]
         [Authorize]
         public async Task<IActionResult> PutTUser( [FromBody]TUserDTO userDTO)
         {
@@ -111,14 +113,145 @@ namespace prjGroupB.Controllers
                 return NotFound(new { message = "用戶不存在或無權限存取" });
             }
 
+            // 轉換 FUserImage（Base64 -> byte[]）
+            if (!string.IsNullOrEmpty(userDTO.FUserImage))
+            {
+                tUser.FUserImage = Convert.FromBase64String(userDTO.FUserImage);
+            }
+            tUser.FUserName = userDTO.FUserName;
+            tUser.FUserRankId = userDTO.FUserRankId;
+            tUser.FUserNickName = userDTO.FUserNickName;
+            tUser.FUserBirthday = userDTO.FUserBirthday;
+            tUser.FUserPhone = userDTO.FUserPhone;
+            tUser.FUserSex = userDTO.FUserSex;
+            tUser.FUserAddress = userDTO.FUserAddress;
 
-            // 查找要更新的用戶
-            //TUser user = await _context.TUsers.FindAsync(id);
+            // 如果提供新密碼，則進行雜湊
+            if (!string.IsNullOrEmpty(userDTO.FUserPassword))
+            {
+                tUser.FUserPassword = HashPassword(userDTO.FUserPassword);
+            }
 
-            //if (user == null)
-            //{
-            //    return BadRequest(new { message = "修改失敗，找不到用戶" });
-            //}
+            //設定為已修改狀態
+            _context.Entry(tUser).State = EntityState.Modified;
+
+            try
+            {
+                await _context.SaveChangesAsync();
+            }
+            catch (DbUpdateConcurrencyException)
+            {
+                return BadRequest(new { message = "修改失敗" });
+            }
+            return Ok(new { message = "修改成功" });
+        }
+
+        //修改登入者Rank
+        // PUT: api/TUsers
+        [HttpPut("loginUserRank")]
+        [Authorize]
+        public async Task<IActionResult> PutTUserRank([FromBody] TUserDTO userDTO)
+        {
+            //尋找登入者ID
+            var userId = int.Parse(User.FindFirstValue(ClaimTypes.NameIdentifier));
+
+            // 查詢指定 ID 的用戶
+            var tUser = await _context.TUsers
+                .Where(p => p.FUserId == userId).FirstOrDefaultAsync();
+
+            // 若找不到用戶，返回 404
+            if (tUser == null)
+            {
+                return NotFound(new { message = "用戶不存在或無權限存取" });
+            }
+
+        
+            tUser.FUserName = userDTO.FUserName;
+            tUser.FUserRankId = userDTO.FUserRankId;
+            tUser.FUserNickName = userDTO.FUserNickName;
+
+            //設定為已修改狀態
+            _context.Entry(tUser).State = EntityState.Modified;
+
+            try
+            {
+                await _context.SaveChangesAsync();
+            }
+            catch (DbUpdateConcurrencyException)
+            {
+                return BadRequest(new { message = "修改失敗" });
+            }
+            return Ok(new { message = "修改成功" });
+        }
+
+
+
+
+
+
+
+
+
+
+        //管理員查詢用戶
+        // GET: api/TUsers/5
+        [HttpGet("{id}")]
+        [Authorize]
+        public async Task<ActionResult<TUserDTO>> GetTUser(int id)
+        {
+
+            //尋找登入者ID
+            var userId = int.Parse(User.FindFirstValue(ClaimTypes.NameIdentifier));
+
+            // 查詢指定 ID 的用戶
+            var tUser = await _context.TUsers
+                .Where(p => p.FUserId ==id).FirstOrDefaultAsync();
+
+            // 若找不到用戶，返回 404
+            if (tUser == null)
+            {
+                return NotFound(new { message = "用戶不存在或無權限存取" });
+            }
+
+            var userDTO = new TUserDTO
+            {
+                FUserId = tUser.FUserId,
+                FUserName = tUser.FUserName,
+                FUserRankId = (int)tUser.FUserRankId,
+                FUserNickName = tUser.FUserNickName,
+                FUserEmail = tUser.FUserEmail,
+                FUserBirthday = tUser.FUserBirthday,
+                FUserPhone = tUser.FUserPhone,
+                FUserSex = tUser.FUserSex,
+                FUserAddress = tUser.FUserAddress,
+                FUserImage = tUser.FUserImage != null ? Convert.ToBase64String(tUser.FUserImage) : null,// 將 FUserImage 轉為 Base64 字串
+                FUserComeDate = (DateTime)tUser.FUserComeDate
+                //FUserPassword = tUser.FUserPassword
+            };
+            return userDTO;
+        }
+
+
+        //管理員修改用戶
+        // PUT: api/TUsers/5
+        // To protect from overposting attacks, see https://go.microsoft.com/fwlink/?linkid=2123754
+        [HttpPut("{id}")]
+        [Authorize]
+        public async Task<IActionResult> ranKPutTUser([FromBody] TUserDTO userDTO)
+        {
+            //尋找登入者ID
+            var userId = int.Parse(User.FindFirstValue(ClaimTypes.NameIdentifier));
+
+            // 查詢指定 ID 的用戶
+            var tUser = await _context.TUsers
+                .Where(p => p.FUserId == userDTO.FUserId).FirstOrDefaultAsync();
+
+            // 若找不到用戶，返回 404
+            if (tUser == null)
+            {
+                return NotFound(new { message = "用戶不存在或無權限存取" });
+            }
+
 
             // 轉換 FUserImage（Base64 -> byte[]）
             if (!string.IsNullOrEmpty(userDTO.FUserImage))
@@ -154,6 +287,10 @@ namespace prjGroupB.Controllers
         }
 
 
+
+
+
+
         //新增
         // POST: api/TUsers
         // To protect from overposting attacks, see https://go.microsoft.com/fwlink/?linkid=2123754
@@ -165,7 +302,7 @@ namespace prjGroupB.Controllers
             if (haveEmail) {
                 return BadRequest(new { message = "該Email已被使用" });
             }
-
+                
 
             // 轉換 Base64 字串為 byte[]，確保圖片能夠正確存入資料庫
             byte[] userImage = string.IsNullOrEmpty(userDTO.FUserImage)

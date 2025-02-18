@@ -31,7 +31,5 @@ public partial class TProduct
 
     public virtual TUser FUser { get; set; }
 
-    public virtual ICollection<TOrdersDetail> TOrdersDetails { get; set; } = new List<TOrdersDetail>();
-
     public virtual ICollection<TProductImage> TProductImages { get; set; } = new List<TProductImage>();
 }

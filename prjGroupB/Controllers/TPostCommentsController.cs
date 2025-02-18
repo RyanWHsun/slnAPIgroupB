@@ -33,16 +33,21 @@ namespace prjGroupB.Controllers
             {
                 return null;
             }
-            return _context.TPostComments.Where(c => c.FPostId == id).Select(e => new TPostCommentsDTO
-            {
-                FCommentId = e.FCommentId,
-                FPostId = e.FPostId,
-                FUserId = e.FUserId,
-                FContent = e.FContent,
-                FCreatedAt = e.FCreatedAt,
-                FUpdatedAt = e.FUpdatedAt,
-                FParentCommentId = e.FParentCommentId
-            });
+            return _context.TPostComments
+                .Where(c => c.FPostId == id)
+                .OrderByDescending(t => t.FCreatedAt)
+                .Include(e=>e.FUser)
+                .Select(e => new TPostCommentsDTO{
+                    FCommentId = e.FCommentId,
+                    FPostId = e.FPostId,
+                    FUserName = e.FUser.FUserName,
+                    FUserNickName = e.FUser.FUserNickName,
+                    FUserImage = Convert.ToBase64String(e.FUser.FUserImage),
+                    FContent = e.FContent,
+                    FCreatedAt = e.FCreatedAt,
+                    FUpdatedAt = e.FUpdatedAt,
+                    FParentCommentId = e.FParentCommentId
+                });
         }
 
         // PUT: api/TPostComments/5
@@ -80,11 +85,9 @@ namespace prjGroupB.Controllers
         public async Task<TPostCommentsDTO> PostTPostComment(TPostCommentsDTO PostCommentsDTO)
         {
             int userId = int.Parse(User.FindFirstValue(ClaimTypes.NameIdentifier));
-            int postId = (int)PostCommentsDTO.FPostId;
-            TPost post = await _context.TPosts.FindAsync(postId);
             TPostComment comment = new TPostComment
             {
-                FPostId = postId,
+                FPostId = PostCommentsDTO.FPostId,
                 FUserId = userId,
                 FContent = PostCommentsDTO.FContent,
                 FCreatedAt = DateTime.Now,
