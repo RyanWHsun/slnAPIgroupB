@@ -33,6 +33,10 @@ public partial class dbGroupBContext : DbContext
 
     public virtual DbSet<TAttractionUserFavorite> TAttractionUserFavorites { get; set; }
 
+    public virtual DbSet<TAttractionView> TAttractionViews { get; set; }
+
+    public virtual DbSet<TAttractionViewLog> TAttractionViewLogs { get; set; }
+
     public virtual DbSet<TChatRoom> TChatRooms { get; set; }
 
     public virtual DbSet<TEvent> TEvents { get; set; }
@@ -347,6 +351,43 @@ public partial class dbGroupBContext : DbContext
                 .HasConstraintName("FK__tAttracti__fUser__0B91BA14");
         });
 
+        modelBuilder.Entity<TAttractionView>(entity =>
+        {
+            entity.HasKey(e => e.FId);
+
+            entity.ToTable("tAttractionViews");
+
+            entity.Property(e => e.FId).HasColumnName("fId");
+            entity.Property(e => e.FAttractionId).HasColumnName("fAttractionId");
+            entity.Property(e => e.FViewCount).HasColumnName("fViewCount");
+
+            entity.HasOne(d => d.FAttraction).WithMany(p => p.TAttractionViews)
+                .HasForeignKey(d => d.FAttractionId)
+                .OnDelete(DeleteBehavior.Cascade)
+                .HasConstraintName("FK_tAttractionViews_tAttractions");
+        });
+
+        modelBuilder.Entity<TAttractionViewLog>(entity =>
+        {
+            entity.HasKey(e => e.FLogId);
+
+            entity.ToTable("tAttractionViewLogs");
+
+            entity.Property(e => e.FLogId).HasColumnName("fLogId");
+            entity.Property(e => e.FAttractionId).HasColumnName("fAttractionId");
+            entity.Property(e => e.FUserIp)
+                .HasMaxLength(50)
+                .HasColumnName("fUserIp");
+            entity.Property(e => e.FViewTime)
+                .HasColumnType("datetime")
+                .HasColumnName("fViewTime");
+
+            entity.HasOne(d => d.FAttraction).WithMany(p => p.TAttractionViewLogs)
+                .HasForeignKey(d => d.FAttractionId)
+                .OnDelete(DeleteBehavior.Cascade)
+                .HasConstraintName("FK_tAttractionViewLogs_tAttractions");
+        });
+
         modelBuilder.Entity<TChatRoom>(entity =>
         {
             entity.HasKey(e => e.FChatId);
@@ -394,6 +435,14 @@ public partial class dbGroupBContext : DbContext
                 .HasMaxLength(250)
                 .HasColumnName("fEventURL");
             entity.Property(e => e.FUserId).HasColumnName("fUserId");
+            entity.Property(e => e.FcurrentParticipants)
+                .HasDefaultValue(0)
+                .HasColumnName("FCurrentParticipants");
+            entity.Property(e => e.FeventDuration).HasColumnName("FEventDuration");
+            entity.Property(e => e.FeventFee)
+                .HasColumnType("decimal(10, 2)")
+                .HasColumnName("FEventFee");
+            entity.Property(e => e.FmaxParticipants).HasColumnName("FMaxParticipants");
         });
 
         modelBuilder.Entity<TEventCategory>(entity =>
