@@ -66,6 +66,8 @@ namespace prjGroupB.Controllers
         [Authorize]
         public async Task<List<TPostImagesDTO>> PostTPostImage(List<TPostImagesDTO> PostImagesDTOs)
         {
+            if (PostImagesDTOs.Count == 0)
+                return null;
             int userId = int.Parse(User.FindFirstValue(ClaimTypes.NameIdentifier));
             int postId = (int)PostImagesDTOs.First().FPostId;
             TPost post = await _context.TPosts.FindAsync(postId);
