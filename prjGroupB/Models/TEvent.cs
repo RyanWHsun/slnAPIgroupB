@@ -27,13 +27,13 @@ public partial class TEvent
 
     public bool? FEventIsActive { get; set; }
 
-    public int? FmaxParticipants { get; set; }
+    public int? FMaxParticipants { get; set; }  // 最大參與人數
 
-    public int? FcurrentParticipants { get; set; }
+    public int? FCurrentParticipants { get; set; } // 目前參與人數
 
-    public int? FeventDuration { get; set; }
+    public int? FEventDuration { get; set; } // 活動時長（分鐘或小時）
 
-    public decimal? FeventFee { get; set; }
+    public decimal? FEventFee { get; set; } // 活動費用
 
     public virtual ICollection<TEventCategoryMapping> TEventCategoryMappings { get; set; } = new List<TEventCategoryMapping>();
 

@@ -27,22 +27,27 @@ namespace prjGroupB.Controllers
 
         // GET: api/TPosts/GetAllPosts
         [HttpGet("GetPublicPosts")]
-        public async Task<IEnumerable<TPostsDTO>> GetPublicPosts()
+        public async Task<IEnumerable<TPostsDTO>> GetPublicPosts(int page = 1, int pageSize = 6)
         {
-            return _context.TPosts.Where(t => t.FIsPublic == true).Select(e => new TPostsDTO
-            {
-                FPostId = e.FPostId,
-                FUserId = e.FUserId,
-                FTitle = e.FTitle,
-                FContent = e.FContent,
-                FCreatedAt = e.FCreatedAt,
-                FUpdatedAt = e.FUpdatedAt,
-                FIsPublic = e.FIsPublic,
-                FCategoryId = e.FCategoryId
-            });
+            return _context.TPosts
+                .Where(t => t.FIsPublic == true)
+                .OrderByDescending(t => t.FCreatedAt)
+                .Skip((page - 1) * pageSize)
+                .Take(pageSize)
+                .Select(e => new TPostsDTO
+                {
+                    FPostId = e.FPostId,
+                    FUserId = e.FUserId,
+                    FTitle = e.FTitle,
+                    FContent = e.FContent,
+                    FCreatedAt = e.FCreatedAt,
+                    FUpdatedAt = e.FUpdatedAt,
+                    FIsPublic = e.FIsPublic,
+                    FCategoryId = e.FCategoryId
+                });
         }
 
-        // GET: api/TPosts/GetMyPosts
+        // GET: api/TPosts/
         [HttpGet]
         [Authorize]
         public async Task<IEnumerable<TPostsDTO>> GetMyPosts()
@@ -139,6 +144,21 @@ namespace prjGroupB.Controllers
                 return "刪除資料庫失敗";
             }
             return "刪除文章成功";
+        }
+
+        // GET: api/TPosts/userInfo
+        [HttpGet("userInfo/{id}")]
+        public async Task<ActionResult<TPostsUserInfoDTO>> GetUserInfo(int id)
+        {
+            var tUser = await _context.TUsers.FindAsync(id);
+
+            var userDTO = new TPostsUserInfoDTO
+            {
+                FUserName = tUser.FUserName,
+                FUserNickName = tUser.FUserNickName,
+                FUserImage = tUser.FUserImage != null ? Convert.ToBase64String(tUser.FUserImage) : null,
+            };
+            return userDTO;
         }
     }
 }

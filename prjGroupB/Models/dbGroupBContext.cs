@@ -107,6 +107,8 @@ public partial class dbGroupBContext : DbContext
 
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
+        modelBuilder.UseCollation("Chinese_Taiwan_Stroke_CI_AS");
+
         modelBuilder.Entity<TAttraction>(entity =>
         {
             entity.HasKey(e => e.FAttractionId).HasName("PK__tAttract__F9B18832182D39AF");
@@ -435,14 +437,14 @@ public partial class dbGroupBContext : DbContext
                 .HasMaxLength(250)
                 .HasColumnName("fEventURL");
             entity.Property(e => e.FUserId).HasColumnName("fUserId");
-            entity.Property(e => e.FcurrentParticipants)
+            entity.Property(e => e.FCurrentParticipants)
                 .HasDefaultValue(0)
                 .HasColumnName("FCurrentParticipants");
-            entity.Property(e => e.FeventDuration).HasColumnName("FEventDuration");
-            entity.Property(e => e.FeventFee)
+            entity.Property(e => e.FEventDuration).HasColumnName("FEventDuration");
+            entity.Property(e => e.FEventFee)
                 .HasColumnType("decimal(10, 2)")
                 .HasColumnName("FEventFee");
-            entity.Property(e => e.FmaxParticipants).HasColumnName("FMaxParticipants");
+            entity.Property(e => e.FMaxParticipants).HasColumnName("FMaxParticipants");
         });
 
         modelBuilder.Entity<TEventCategory>(entity =>
