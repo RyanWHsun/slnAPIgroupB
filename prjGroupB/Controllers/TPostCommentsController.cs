@@ -103,17 +103,17 @@ namespace prjGroupB.Controllers
         // DELETE: api/TPostComments/5
         [HttpDelete("{id}")]
         [Authorize]
-        public async Task<string> DeleteTPostComment(int id)
+        public async Task<IActionResult> DeleteTPostComment(int id)
         {
             int userId = int.Parse(User.FindFirstValue(ClaimTypes.NameIdentifier));
             TPostComment comment = await _context.TPostComments.FindAsync(id);
             if (comment == null)
             {
-                return "查無留言";
+                return NotFound(new { message = "查無留言" });
             }
             if (comment.FUserId != userId)
             {
-                return "你沒有權限修改此留言";
+                return Unauthorized(new { message = "你沒有權限刪除此留言" });
             }
             try
             {
@@ -122,9 +122,9 @@ namespace prjGroupB.Controllers
             }
             catch (DbUpdateException ex)
             {
-                return "刪除資料庫失敗";
+                return StatusCode(500, new { message = "刪除資料庫失敗" });
             }
-            return "刪除留言成功";
+            return Ok(new { message = "刪除留言成功" });
         }
     }
 }
