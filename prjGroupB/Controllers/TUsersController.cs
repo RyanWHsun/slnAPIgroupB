@@ -32,25 +32,67 @@ namespace prjGroupB.Controllers
         // GET: api/TUsers
         [HttpGet]
         [Authorize]
-        public async Task<IEnumerable<TUserDTO>> GetTUsers()
+        public async Task<IEnumerable<TUserDTO>> GetTUsers(int page,int pageSize,int userRank,string? search)
         {
-            return _context.TUsers.Select(
-                emp => new TUserDTO
+
+            //計算從哪一筆開始跳過
+            var skip = (page - 1) * pageSize;
+
+            //支持在數據庫中進行延遲執行的查詢
+            var finUser = _context.TUsers.AsQueryable();
+
+            //篩選
+            if (userRank>0)
+            {
+                finUser = finUser.Where(r => r.FUserRankId == userRank);
+            }
+            if (!string.IsNullOrEmpty(search))
+            {
+                finUser = finUser.Where(s =>
+                s.FUserName.Contains(search) ||
+                s.FUserNickName.Contains(search) ||
+                s.FUserEmail.Contains(search));
+            }
+
+
+
+            var users = await finUser
+                .Skip(skip)
+                .Take(pageSize)
+                .Select(emp => new TUserDTO
                 {
-                    FUserId=emp.FUserId,
-                    FUserName=emp.FUserName,
-                    FUserRankId= (int)emp.FUserRankId,
-                    FUserNickName=emp.FUserNickName,
-                    FUserEmail=emp.FUserEmail,
-                    FUserBirthday=emp.FUserBirthday,
-                    FUserPhone=emp.FUserPhone,
-                    FUserSex=emp.FUserSex,
-                    FUserAddress=emp.FUserAddress,
+                    FUserId = emp.FUserId,
+                    FUserName = emp.FUserName,
+                    FUserRankId = (int)emp.FUserRankId,
+                    FUserNickName = emp.FUserNickName,
+                    FUserEmail = emp.FUserEmail,
+                    FUserBirthday = emp.FUserBirthday,
+                    FUserPhone = emp.FUserPhone,
+                    FUserSex = emp.FUserSex,
+                    FUserAddress = emp.FUserAddress,
                     FUserImage = emp.FUserImage != null ? Convert.ToBase64String(emp.FUserImage) : null,
-                    FUserComeDate= (DateTime)emp.FUserComeDate
-                    //FUserPassword=emp.FUserPassword
-                }
-                );
+                    FUserComeDate = (DateTime)emp.FUserComeDate
+                }).ToListAsync();
+
+            return users;    
+            
+            //return _context.TUsers.Select(
+            //    emp => new TUserDTO
+            //    {
+            //        FUserId=emp.FUserId,
+            //        FUserName=emp.FUserName,
+            //        FUserRankId= (int)emp.FUserRankId,
+            //        FUserNickName=emp.FUserNickName,
+            //        FUserEmail=emp.FUserEmail,
+            //        FUserBirthday=emp.FUserBirthday,
+            //        FUserPhone=emp.FUserPhone,
+            //        FUserSex=emp.FUserSex,
+            //        FUserAddress=emp.FUserAddress,
+            //        FUserImage = emp.FUserImage != null ? Convert.ToBase64String(emp.FUserImage) : null,
+            //        FUserComeDate= (DateTime)emp.FUserComeDate
+            //        //FUserPassword=emp.FUserPassword
+            //    }
+            //    );
         }
 
 
