@@ -69,9 +69,9 @@ namespace prjGroupB.Controllers
                     FUserAddress = user.FUserAddress,
                     TotalBalance = totalBalance
                 });
-        
+
             }
-            catch (Exception ex) 
+            catch (Exception ex)
             {
                 return StatusCode(500, new { message = "無法獲取會員資訊與錢包餘額", error = ex.Message });
             }
@@ -118,8 +118,8 @@ namespace prjGroupB.Controllers
                         if (product.FStock <= 0)
                         {
                             product.FIsOnSales = false;
-                        } 
-                        _context.TProducts.Update(product); 
+                        }
+                        _context.TProducts.Update(product);
                     }
                 }
                 await _context.SaveChangesAsync(); //存檔一次以防有商品要修改狀態
@@ -131,14 +131,20 @@ namespace prjGroupB.Controllers
                     .GroupBy(item => item.FSellerId)
                     .ToList();
 
+                //依活動類別分組
+                var eventOrders = checkoutRequest.SelectedItems
+                    .Where(item => item.FItemType == "eventFee")
+                    .GroupBy(item => item.FSellerId)
+                    .ToList();
+
                 //活動&票券依類別分組
-                var otherOrders= checkoutRequest.SelectedItems
-                    .Where(item=>item.FItemType == "attractionTicket" || item.FItemType == "eventFee")
+                var attractionOrders = checkoutRequest.SelectedItems
+                    .Where(item => item.FItemType == "attractionTicket")
                     .GroupBy(item => item.FItemType)
                     .ToList();
 
                 if (productOrders.Any()) //有商品就處理商品訂單
-                {                    
+                {
                     foreach (var group in productOrders)
                     {
                         var sellerId = group.Key;
@@ -198,9 +204,9 @@ namespace prjGroupB.Controllers
                             var walletTransaction = new TWallet
                             {
                                 FUserId = buyerId,
-                                FAmountChange=(int)(-orderTotal),// 扣款，確保轉換為 int
-                                FChangeLog=$"付款：訂單編號#{order.FOrderId}",
-                                FChangeTime =DateTime.Now,
+                                FAmountChange = (int)(-orderTotal),// 扣款，確保轉換為 int
+                                FChangeLog = $"付款：訂單編號#{order.FOrderId}",
+                                FChangeTime = DateTime.Now,
                             };
                             _context.TWallets.Add(walletTransaction);
                         }
@@ -209,67 +215,50 @@ namespace prjGroupB.Controllers
                     }
                 }
 
-                if (otherOrders.Any()) //處理票券&活動
+                //處理活動
+                if (eventOrders.Any())
                 {
-                    foreach (var group in otherOrders)
+                    foreach (var group in eventOrders)
                     {
-                        var order = new TOrder
-                        {
-                            FBuyerId = buyerId,
-                            FOrderStatusId = 3, //訂單完成
-                            FOrderDate = DateTime.Now,
-                            FShipAddress = null,
-                            FPaymentMethod = checkoutRequest.FPaymentMethod,
-                            TOrdersDetails = new List<TOrdersDetail>()
-                        };
-                        _context.TOrders.Add(order);
-                        await _context.SaveChangesAsync();
+                        var eventItem = group.FirstOrDefault();
 
-                        var orderTotal = 0m;
-
-                        foreach (var item in group)
+                        if (eventItem != null)
                         {
-                            var unitPrice = GetItemPrice(item.FItemType, item.FItemId);
-                            orderTotal += unitPrice * item.FQuantity;
-
-                            var orderDetail = new TOrdersDetail
-                            {
-                                FOrderId = order.FOrderId,
-                                FItemId = item.FItemId,
-                                FItemType = item.FItemType,
-                                FOrderQty = item.FQuantity,
-                                FUnitPrice = unitPrice,
-                                FExtraInfo = null  //備註
-                            };
-                            _context.TOrdersDetails.Add(orderDetail);
-                            //刪除購物車內該商品
-                            var cartItem = await _context.TShoppingCartItems.FindAsync(item.FCartItemId);
-                            if (cartItem != null)
-                            {
-                                _context.TShoppingCartItems.Remove(cartItem);
-                            }
-                        }
-                        if (checkoutRequest.FPaymentMethod == "Wallet")
-                        {
-                            var walletTransaction = new TWallet
+                            var newEvent = new TEventRegistrationForm
                             {
                                 FUserId = buyerId,
-                                FAmountChange = (int)(-orderTotal), // 扣款，確保轉換為 int
-                                FChangeLog = $"付款：訂單編號{order.FOrderId}",
-                                FChangeTime = DateTime.Now
+                                FEventId = eventItem.FItemId,
+                                FEregistrationDate = DateTime.Now,
+                                FRegistrationStatus = "pending",
                             };
-                            _context.TWallets.Add(walletTransaction);
+                            _context.TEventRegistrationForms.Add(newEvent);
+                            await _context.SaveChangesAsync();
+                            var orderTotal = 0m;
+
+                            foreach (var item in group)
+                            {
+                                var unitPrice = GetItemPrice(item.FItemType, item.FItemId);
+                                orderTotal += unitPrice * 1;
+
+                                //刪除購物車內該商品
+                                var cartItem = await _context.TShoppingCartItems.FindAsync(item.FCartItemId);
+                                if (cartItem != null)
+                                {
+                                    _context.TShoppingCartItems.Remove(cartItem);
+                                }
+                            }
+                            if (checkoutRequest.FPaymentMethod == "Wallet")
+                            {
+                                var walletTransaction = new TWallet
+                                {
+                                    FUserId = buyerId,
+                                    FAmountChange = (int)(-orderTotal), // 扣款，確保轉換為 int
+                                    FChangeLog = $"付款：報名編號{newEvent.FEventRegistrationFormId}",
+                                    FChangeTime = DateTime.Now
+                                };
+                                _context.TWallets.Add(walletTransaction);
+                            }
                         }
-                        //新增訂單歷史紀錄
-                        var orderHistory = new TOrderStatusHistory
-                        {
-                            FOrderId = order.FOrderId,
-                            FOrderStatusId = 3, //訂單完成
-                            FStatusName = _context.TOrderStatuses.FirstOrDefault(s => s.FOrderStatusId == 3).FStatusName,
-                            FTimestamp = DateTime.Now,
-                        };
-                        _context.TOrderStatusHistories.Add(orderHistory);
-                        createdOrders.Add(order);
                     }
                 }
                 int affectedRows = await _context.SaveChangesAsync(); // 這裡檢查是否成功寫入
@@ -278,7 +267,7 @@ namespace prjGroupB.Controllers
                 {
                     return StatusCode(500, new { message = "訂單建立失敗，未能寫入資料庫" });
                 }
-                return Ok(new { message = "訂單建立成功"});
+                return Ok(new { message = "訂單建立成功" });
             }
             catch (Exception ex)
             {
@@ -304,11 +293,10 @@ namespace prjGroupB.Controllers
                                .FirstOrDefault() ?? 0;
 
                 case "eventFee":
-                    return 100;
-                    //return _context.TEvents
-                    //           .Where(e => e.FEventId == itemId)
-                    //           .Select(e => (decimal?)e.FPrice)
-                    //           .FirstOrDefault() ?? 0;
+                    return _context.TEvents
+                               .Where(e => e.FEventId == itemId)
+                               .Select(e => (decimal?)e.FEventFee)
+                               .FirstOrDefault() ?? 0;
 
                 default:
                     return 0; // 預設回傳 0 避免錯誤
@@ -351,16 +339,16 @@ namespace prjGroupB.Controllers
                                         FOrderDate = g.Key.FOrderDate,
                                         FOrderAmount = g.Sum(x => (int)(x.od.FUnitPrice * x.od.FOrderQty)),
                                         SellerName = g.Select(x => x.u.FUserNickName).FirstOrDefault(),
-                                        FProductName = g.Select(x=>x.p.FProductName).ToList()
+                                        FProductName = g.Select(x => x.p.FProductName).ToList()
                                     }).ToListAsync();
 
-                if(orders == null || orders.Count == 0)
+                if (orders == null || orders.Count == 0)
                 {
                     return NotFound(new { message = "尚無訂單，快去消費吧!" });
                 }
                 return Ok(orders);
             }
-            catch (Exception ex) 
+            catch (Exception ex)
             {
                 return StatusCode(500, new { message = "獲取訂單時發生錯誤", error = ex.Message });
             }
@@ -417,7 +405,7 @@ namespace prjGroupB.Controllers
                     StatusHistory = statusHistory,
                 });
             }
-            catch (Exception ex) 
+            catch (Exception ex)
             {
                 return StatusCode(500, new { message = "獲取訂單詳情時發生錯誤", error = ex.Message });
             }
@@ -496,7 +484,7 @@ namespace prjGroupB.Controllers
                     return NotFound(new { message = "尚無銷售訂單" });
                 }
                 return Ok(orders);
-                
+
             }
             catch (Exception ex)
             {
@@ -513,7 +501,7 @@ namespace prjGroupB.Controllers
             try
             {   //找訂單
                 var order = await _context.TOrders.FindAsync(orderId);
-                if (order == null) 
+                if (order == null)
                 {
                     return NotFound(new { message = "訂單不存在" });
                 }
@@ -521,7 +509,7 @@ namespace prjGroupB.Controllers
                 if (order.FOrderStatusId == 1)
                 {
                     order.FOrderStatusId = 2; //更新為待收貨
-                                          //新增狀態歷史紀錄
+                                              //新增狀態歷史紀錄
                     var statusHistory = new TOrderStatusHistory
                     {
                         FOrderId = orderId,
@@ -532,9 +520,9 @@ namespace prjGroupB.Controllers
                     _context.TOrderStatusHistories.Add(statusHistory);
                 }
                 order.FExtraInfo = shipOrderDTO.extraInfo;
- 
+
                 await _context.SaveChangesAsync();
-                return Ok(new { message = "訂單狀態已更新" }); 
+                return Ok(new { message = "訂單狀態已更新" });
             }
             catch (Exception ex)
             {
@@ -561,14 +549,14 @@ namespace prjGroupB.Controllers
                     return NotFound(new { message = "訂單不存在" });
                 }
                 //確定訂單狀態為1
-                if(order.FOrderStatusId != 1)
+                if (order.FOrderStatusId != 1)
                 {
                     return BadRequest(new { message = "此訂單地址無法進行更新" });
                 }
                 //更新地址
-                order.FShipAddress=buyerUpdate.FShipAddress;
+                order.FShipAddress = buyerUpdate.FShipAddress;
                 await _context.SaveChangesAsync();
-                return Ok(new { message="地址已變更完畢!" });
+                return Ok(new { message = "地址已變更完畢!" });
 
             }
             catch (Exception ex)
@@ -615,18 +603,18 @@ namespace prjGroupB.Controllers
 
                     //找商品Id
                     var productId = orderDetails.FirstOrDefault()?.FItemId;
-                    if(productId == null)
+                    if (productId == null)
                     {
                         await transaction.RollbackAsync();
                         return BadRequest(new { message = "Error456:訂單更新失敗，請洽客服" });
                     }
 
                     //賣家Id
-                    var sellerId =await _context.TProducts
-                        .Where(p=>p.FProductId == productId)
+                    var sellerId = await _context.TProducts
+                        .Where(p => p.FProductId == productId)
                         .Select(p => p.FUserId)
                         .FirstOrDefaultAsync();
-                    if (sellerId == null) 
+                    if (sellerId == null)
                     {
                         await transaction.RollbackAsync();
                         return BadRequest(new { message = "Error789:訂單更新失敗，請洽客服" });
