@@ -26,6 +26,7 @@
             public int FItemId { get; set; }
             public int FQuantity { get; set; }
             public int FSellerId { get; set; }
+            public int FeventId { get; set; }
         }
 
     }

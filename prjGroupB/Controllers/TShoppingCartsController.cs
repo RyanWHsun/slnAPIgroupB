@@ -51,7 +51,7 @@ namespace prjGroupB.Controllers
                     FSellerId = i.FItemType == "product" ? _context.TProducts.FirstOrDefault(p => p.FProductId == i.FItemId)?.FUserId : 0,
                     FSellerName = i.FItemType == "product"? GetSellerName(i.FItemType,i.FItemId):null,
                     FProductStock=i.FItemType =="product"? _context.TProducts.FirstOrDefault(p => p.FProductId == i.FItemId)?.FStock : null,
-                    FSpecification = i.FItemType == "attractionTicket"? _context.TAttractionTickets.FirstOrDefault(p => p.FAttractionTicketId==i.FItemId)?.FTicketType : null,
+                    FSpecification = GetItemRemark(i.FItemType,i.FItemId)
 
             }).ToList();
             if (!result.Any())
@@ -61,11 +61,29 @@ namespace prjGroupB.Controllers
             return Ok(result);
         }
 
+        private static string GetItemRemark(string fItemType, int? fItemId)
+        {
+            if (fItemId == null)
+            {
+                return "未知";
+            }
+            using (var context = new dbGroupBContext())
+            {
+                return fItemType switch
+                {
+                    "product" => "商品規格",
+                    "attractionTicket" => context.TAttractionTickets.FirstOrDefault(p => p.FAttractionTicketId == fItemId)?.FTicketType ?? "景點名稱",
+                    "eventFee" => context.TEvents.FirstOrDefault(e=>e.FEventId==fItemId)?.FEventStartDate.ToString()??"日期"
+                };
+            }
+        }
+
+        
         private static string GetItemName(string fItemType, int? fItemId)
         {
             if(fItemId == null)
             {
-                return "未知商品";
+                return "未知";
             }
             using (var context = new dbGroupBContext())
             {

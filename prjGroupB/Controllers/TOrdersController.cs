@@ -131,9 +131,15 @@ namespace prjGroupB.Controllers
                     .GroupBy(item => item.FSellerId)
                     .ToList();
 
+                //依活動類別分組
+                var eventOrders = checkoutRequest.SelectedItems
+                    .Where(item => item.FItemType == "eventFee")
+                    .GroupBy(item => item.FSellerId)
+                    .ToList();
+
                 //活動&票券依類別分組
-                var otherOrders= checkoutRequest.SelectedItems
-                    .Where(item=>item.FItemType == "attractionTicket" || item.FItemType == "eventFee")
+                var attractionOrders = checkoutRequest.SelectedItems
+                    .Where(item=>item.FItemType == "attractionTicket")
                     .GroupBy(item => item.FItemType)
                     .ToList();
 
@@ -209,67 +215,50 @@ namespace prjGroupB.Controllers
                     }
                 }
 
-                if (otherOrders.Any()) //處理票券&活動
+                //處理活動
+                if (eventOrders.Any()) 
                 {
-                    foreach (var group in otherOrders)
+                    foreach (var group in eventOrders)
                     {
-                        var order = new TOrder
-                        {
-                            FBuyerId = buyerId,
-                            FOrderStatusId = 3, //訂單完成
-                            FOrderDate = DateTime.Now,
-                            FShipAddress = null,
-                            FPaymentMethod = checkoutRequest.FPaymentMethod,
-                            TOrdersDetails = new List<TOrdersDetail>()
-                        };
-                        _context.TOrders.Add(order);
-                        await _context.SaveChangesAsync();
+                        var eventItem = group.FirstOrDefault();
 
-                        var orderTotal = 0m;
-
-                        foreach (var item in group)
+                        if (eventItem != null) 
                         {
-                            var unitPrice = GetItemPrice(item.FItemType, item.FItemId);
-                            orderTotal += unitPrice * item.FQuantity;
-
-                            var orderDetail = new TOrdersDetail
-                            {
-                                FOrderId = order.FOrderId,
-                                FItemId = item.FItemId,
-                                FItemType = item.FItemType,
-                                FOrderQty = item.FQuantity,
-                                FUnitPrice = unitPrice,
-                                FExtraInfo = null  //備註
-                            };
-                            _context.TOrdersDetails.Add(orderDetail);
-                            //刪除購物車內該商品
-                            var cartItem = await _context.TShoppingCartItems.FindAsync(item.FCartItemId);
-                            if (cartItem != null)
-                            {
-                                _context.TShoppingCartItems.Remove(cartItem);
-                            }
-                        }
-                        if (checkoutRequest.FPaymentMethod == "Wallet")
-                        {
-                            var walletTransaction = new TWallet
+                            var newEvent = new TEventRegistrationForm
                             {
                                 FUserId = buyerId,
-                                FAmountChange = (int)(-orderTotal), // 扣款，確保轉換為 int
-                                FChangeLog = $"付款：訂單編號{order.FOrderId}",
-                                FChangeTime = DateTime.Now
+                                FEventId = eventItem.FItemId,
+                                FEregistrationDate = DateTime.Now,
+                                FRegistrationStatus = "pending",
                             };
-                            _context.TWallets.Add(walletTransaction);
-                        }
-                        //新增訂單歷史紀錄
-                        var orderHistory = new TOrderStatusHistory
-                        {
-                            FOrderId = order.FOrderId,
-                            FOrderStatusId = 3, //訂單完成
-                            FStatusName = _context.TOrderStatuses.FirstOrDefault(s => s.FOrderStatusId == 3).FStatusName,
-                            FTimestamp = DateTime.Now,
-                        };
-                        _context.TOrderStatusHistories.Add(orderHistory);
-                        createdOrders.Add(order);
+                            _context.TEventRegistrationForms.Add(newEvent);
+                            await _context.SaveChangesAsync();
+                            var orderTotal = 0m;
+
+                            foreach (var item in group)
+                            {
+                                var unitPrice = GetItemPrice(item.FItemType, item.FItemId);
+                                orderTotal += unitPrice * 1;
+
+                                //刪除購物車內該商品
+                                var cartItem = await _context.TShoppingCartItems.FindAsync(item.FCartItemId);
+                                if (cartItem != null)
+                                {
+                                    _context.TShoppingCartItems.Remove(cartItem);
+                                }
+                            }
+                            if (checkoutRequest.FPaymentMethod == "Wallet")
+                            {
+                                var walletTransaction = new TWallet
+                                {
+                                    FUserId = buyerId,
+                                    FAmountChange = (int)(-orderTotal), // 扣款，確保轉換為 int
+                                    FChangeLog = $"付款：報名編號{newEvent.FEventRegistrationFormId}",
+                                    FChangeTime = DateTime.Now
+                                };
+                                _context.TWallets.Add(walletTransaction);
+                            }
+                        }                         
                     }
                 }
                 int affectedRows = await _context.SaveChangesAsync(); // 這裡檢查是否成功寫入
@@ -304,11 +293,10 @@ namespace prjGroupB.Controllers
                                .FirstOrDefault() ?? 0;
 
                 case "eventFee":
-                    return 100;
-                    //return _context.TEvents
-                    //           .Where(e => e.FEventId == itemId)
-                    //           .Select(e => (decimal?)e.FPrice)
-                    //           .FirstOrDefault() ?? 0;
+                    return _context.TEvents
+                               .Where(e => e.FEventId == itemId)
+                               .Select(e => (decimal?)e.FEventFee)
+                               .FirstOrDefault() ?? 0;
 
                 default:
                     return 0; // 預設回傳 0 避免錯誤
