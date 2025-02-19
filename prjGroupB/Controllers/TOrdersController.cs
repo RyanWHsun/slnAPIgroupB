@@ -137,7 +137,7 @@ namespace prjGroupB.Controllers
                     .GroupBy(item => item.FSellerId)
                     .ToList();
 
-                //活動&票券依類別分組
+                //票券依類別分組
                 var attractionOrders = checkoutRequest.SelectedItems
                     .Where(item=>item.FItemType == "attractionTicket")
                     .GroupBy(item => item.FItemType)
@@ -261,6 +261,58 @@ namespace prjGroupB.Controllers
                         }                         
                     }
                 }
+
+
+                //處理活動
+                if (attractionOrders.Any())
+                {
+                    foreach (var group in attractionOrders)
+                    {
+                        var attractionItem = group.FirstOrDefault();
+
+                        if (attractionItem != null)
+                        {
+                            var unitPrice = GetItemPrice(attractionItem.FItemType, attractionItem.FItemId);
+                            var newTicket = new TAttractionTicketOrder
+                            {
+                                FBuyerId=buyerId,
+                                FAttractionTicketId=attractionItem.FItemId,
+                                FCreatedDate=DateTime.Now,
+                                FOrderQty=attractionItem.FQuantity,
+                                FUnitPrice=unitPrice                            
+                            };
+                            _context.TAttractionTicketOrders.Add(newTicket);
+                            await _context.SaveChangesAsync();
+                            var orderTotal = 0m;
+
+                            foreach (var item in group)
+                            {
+                                orderTotal += unitPrice * newTicket.FOrderQty.GetValueOrDefault();
+
+                                //刪除購物車內該商品
+                                var cartItem = await _context.TShoppingCartItems.FindAsync(item.FCartItemId);
+                                if (cartItem != null)
+                                {
+                                    _context.TShoppingCartItems.Remove(cartItem);
+                                }
+                            }
+                            if (checkoutRequest.FPaymentMethod == "Wallet")
+                            {
+                                var walletTransaction = new TWallet
+                                {
+                                    FUserId = buyerId,
+                                    FAmountChange = (int)(-orderTotal), // 扣款，確保轉換為 int
+                                    FChangeLog = $"付款：票券報名編號{newTicket.FAttractionTicketOrderId}",
+                                    FChangeTime = DateTime.Now
+                                };
+                                _context.TWallets.Add(walletTransaction);
+                            }
+                        }
+                    }
+                }
+
+
+
                 int affectedRows = await _context.SaveChangesAsync(); // 這裡檢查是否成功寫入
                 await transaction.CommitAsync(); //提交交易
                 if (affectedRows == 0)
