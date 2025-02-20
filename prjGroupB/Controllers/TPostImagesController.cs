@@ -96,7 +96,7 @@ namespace prjGroupB.Controllers
         // DELETE: api/TPostImages/5
         [HttpDelete("{id}")]
         [Authorize]
-        public async Task<string> DeleteTPost(int id)
+        public async Task<string> DeleteTPostImage(int id)
         {
             int userId = int.Parse(User.FindFirstValue(ClaimTypes.NameIdentifier));
             TPostImage postImage = await _context.TPostImages.FindAsync(id);
