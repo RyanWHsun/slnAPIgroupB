@@ -63,52 +63,76 @@ namespace prjGroupB.Controllers
 
         private static string GetItemRemark(string fItemType, int? fItemId)
         {
-            if (fItemId == null)
+            try
             {
-                return "未知";
-            }
-            using (var context = new dbGroupBContext())
-            {
-                return fItemType switch
+                if (fItemId == null)
                 {
-                    "product" => "商品規格",
-                    "attractionTicket" => context.TAttractionTickets.FirstOrDefault(p => p.FAttractionTicketId == fItemId)?.FTicketType ?? "景點名稱",
-                    "eventFee" => context.TEvents.FirstOrDefault(e=>e.FEventId==fItemId)?.FEventStartDate.ToString()??"日期"
-                };
+                    return "未知";
+                }
+                using (var context = new dbGroupBContext())
+                {
+                    return fItemType switch
+                    {
+                        "product" => "商品規格",
+                        "attractionTicket" => context.TAttractionTickets.FirstOrDefault(p => p.FAttractionTicketId == fItemId)?.FTicketType ?? "景點名稱",
+                        "eventFee" => context.TEvents.FirstOrDefault(e => e.FEventId == fItemId)?.FEventStartDate.ToString() ?? "日期"
+                    };
+                }
+            }
+            catch (Exception ex)
+            {
+                Console.WriteLine($"GetItemRemark有ERROR: {ex.Message}");
+                return null;
             }
         }
 
         
         private static string GetItemName(string fItemType, int? fItemId)
         {
-            if(fItemId == null)
+            try
             {
-                return "未知";
-            }
-            using (var context = new dbGroupBContext())
-            {
-                return fItemType switch
+                if (fItemId == null)
                 {
-                    "product" => context.TProducts.FirstOrDefault(p => p.FProductId == fItemId)?.FProductName ?? "商品",
-                    "attractionTicket" => context.TAttractions.FirstOrDefault(a => a.FAttractionId == (context.TAttractionTickets.FirstOrDefault(t => t.FAttractionTicketId == fItemId).FAttractionId)).FAttractionName ?? "景點名稱",
-                    "eventFee" => context.TEvents.FirstOrDefault(p => p.FEventId == fItemId)?.FEventName ?? "活動"
-                };
+                    return "購物車項目";
+                }
+                using (var context = new dbGroupBContext())
+                {
+                    return fItemType switch
+                    {
+                        "product" => context.TProducts.FirstOrDefault(p => p.FProductId == fItemId)?.FProductName ?? "商品",
+                        "attractionTicket" => context.TAttractions.FirstOrDefault(a => a.FAttractionId == (context.TAttractionTickets.FirstOrDefault(t => t.FAttractionTicketId == fItemId).FAttractionId)).FAttractionName ?? "景點名稱",
+                        "eventFee" => context.TEvents.FirstOrDefault(p => p.FEventId == fItemId)?.FEventName ?? "活動"
+                    };
 
-            } 
-                
+                }
+            }
+            catch (Exception ex)
+            {
+                Console.WriteLine($"GetItemName有ERROR: {ex.Message}");
+                return null;
+            }
         }
 
         private static string GetSellerName(string fItemType, int? fItemId)
         {
-            if (fItemId == null || fItemType != "product") 
+            try
             {
+                if (fItemId == null || fItemType != "product")
+                {
+                    return "賣家556";
+                }
+                using (var context = new dbGroupBContext())
+                {
+                    var sellerUserId = context.TProducts.FirstOrDefault(p => p.FProductId == fItemId)?.FUserId;
+                    return context.TUsers.FirstOrDefault(u => u.FUserId == sellerUserId).FUserNickName;
+                }
+            }
+            catch (Exception ex) 
+            {
+                Console.WriteLine($"GetSellerName有ERROR: {ex.Message}");
                 return null;
             }
-            using (var context = new dbGroupBContext())
-            {
-                var sellerUserId = context.TProducts.FirstOrDefault(p => p.FProductId == fItemId)?.FUserId;
-                return context.TUsers.FirstOrDefault(u => u.FUserId == sellerUserId).FUserNickName ;
-            }
+
         }
         private static string? GetItemImage(string fItemType, int? fItemId)
         {
