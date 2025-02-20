@@ -61,11 +61,10 @@ namespace prjGroupB.Controllers
 
         // DELETE: api/TPostLikes/5
         [HttpDelete("{id}")]
-        //[Authorize]
+        [Authorize]
         public async Task<IActionResult> DeleteTPostLike(int id)
         {
-            //int userId = int.Parse(User.FindFirstValue(ClaimTypes.NameIdentifier));
-            int userId = 5;
+            int userId = int.Parse(User.FindFirstValue(ClaimTypes.NameIdentifier));
             TPostLike like = await _context.TPostLikes.FindAsync(id);
             if (like == null)
             {
