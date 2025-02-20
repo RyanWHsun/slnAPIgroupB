@@ -83,9 +83,9 @@ public partial class dbGroupBContext : DbContext
 
     public virtual DbSet<TPostImage> TPostImages { get; set; }
 
-    public virtual DbSet<TPostTag> TPostTags { get; set; }
+    public virtual DbSet<TPostLike> TPostLikes { get; set; }
 
-    public virtual DbSet<TPostView> TPostViews { get; set; }
+    public virtual DbSet<TPostTag> TPostTags { get; set; }
 
     public virtual DbSet<TProduct> TProducts { get; set; }
 
@@ -107,8 +107,6 @@ public partial class dbGroupBContext : DbContext
 
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
-        modelBuilder.UseCollation("Chinese_Taiwan_Stroke_CI_AS");
-
         modelBuilder.Entity<TAttraction>(entity =>
         {
             entity.HasKey(e => e.FAttractionId).HasName("PK__tAttract__F9B18832182D39AF");
@@ -437,14 +435,14 @@ public partial class dbGroupBContext : DbContext
                 .HasMaxLength(250)
                 .HasColumnName("fEventURL");
             entity.Property(e => e.FUserId).HasColumnName("fUserId");
-            entity.Property(e => e.FCurrentParticipants)
+            entity.Property(e => e.FcurrentParticipants)
                 .HasDefaultValue(0)
                 .HasColumnName("FCurrentParticipants");
-            entity.Property(e => e.FEventDuration).HasColumnName("FEventDuration");
-            entity.Property(e => e.FEventFee)
+            entity.Property(e => e.FeventDuration).HasColumnName("FEventDuration");
+            entity.Property(e => e.FeventFee)
                 .HasColumnType("decimal(10, 2)")
                 .HasColumnName("FEventFee");
-            entity.Property(e => e.FMaxParticipants).HasColumnName("FMaxParticipants");
+            entity.Property(e => e.FmaxParticipants).HasColumnName("FMaxParticipants");
         });
 
         modelBuilder.Entity<TEventCategory>(entity =>
@@ -927,6 +925,25 @@ public partial class dbGroupBContext : DbContext
                 .HasConstraintName("FK_tPosts_TO_tPostImages");
         });
 
+        modelBuilder.Entity<TPostLike>(entity =>
+        {
+            entity.HasKey(e => e.FLikeId);
+
+            entity.ToTable("tPostLikes");
+
+            entity.Property(e => e.FLikeId).HasColumnName("fLikeId");
+            entity.Property(e => e.FPostId).HasColumnName("fPostId");
+            entity.Property(e => e.FUserId).HasColumnName("fUserId");
+
+            entity.HasOne(d => d.FPost).WithMany(p => p.TPostLikes)
+                .HasForeignKey(d => d.FPostId)
+                .HasConstraintName("FK_tPostLikes_tPosts");
+
+            entity.HasOne(d => d.FUser).WithMany(p => p.TPostLikes)
+                .HasForeignKey(d => d.FUserId)
+                .HasConstraintName("FK_tPostLikes_tUser");
+        });
+
         modelBuilder.Entity<TPostTag>(entity =>
         {
             entity.HasKey(e => e.FTagId);
@@ -937,26 +954,6 @@ public partial class dbGroupBContext : DbContext
             entity.Property(e => e.FTagName)
                 .HasMaxLength(50)
                 .HasColumnName("fTagName");
-        });
-
-        modelBuilder.Entity<TPostView>(entity =>
-        {
-            entity.HasKey(e => e.FViewId);
-
-            entity.ToTable("tPostViews");
-
-            entity.Property(e => e.FViewId).HasColumnName("fViewId");
-            entity.Property(e => e.FPostId).HasColumnName("fPostId");
-            entity.Property(e => e.FUserId).HasColumnName("fUserId");
-
-            entity.HasOne(d => d.FPost).WithMany(p => p.TPostViews)
-                .HasForeignKey(d => d.FPostId)
-                .OnDelete(DeleteBehavior.Cascade)
-                .HasConstraintName("FK_tPosts_TO_tPostViews");
-
-            entity.HasOne(d => d.FUser).WithMany(p => p.TPostViews)
-                .HasForeignKey(d => d.FUserId)
-                .HasConstraintName("FK_tUser_TO_tPostViews");
         });
 
         modelBuilder.Entity<TProduct>(entity =>

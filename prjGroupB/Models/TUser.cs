@@ -63,7 +63,7 @@ public partial class TUser
 
     public virtual ICollection<TPostComment> TPostComments { get; set; } = new List<TPostComment>();
 
-    public virtual ICollection<TPostView> TPostViews { get; set; } = new List<TPostView>();
+    public virtual ICollection<TPostLike> TPostLikes { get; set; } = new List<TPostLike>();
 
     public virtual ICollection<TPost> TPosts { get; set; } = new List<TPost>();
 

@@ -33,5 +33,5 @@ public partial class TPost
 
     public virtual ICollection<TPostImage> TPostImages { get; set; } = new List<TPostImage>();
 
-    public virtual ICollection<TPostView> TPostViews { get; set; } = new List<TPostView>();
+    public virtual ICollection<TPostLike> TPostLikes { get; set; } = new List<TPostLike>();
 }
