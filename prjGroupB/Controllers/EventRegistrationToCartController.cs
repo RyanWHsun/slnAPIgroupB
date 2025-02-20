@@ -64,7 +64,7 @@ namespace prjGroupB.Controllers
             }
 
             // 🔹 設定活動報名價格
-            decimal eventPrice = eventItem.FEventFee ?? 0m;
+            decimal eventPrice = eventItem.FeventFee ?? 0m;
 
             // 🔹 新增活動至購物車
             var newItem = new TShoppingCartItem
