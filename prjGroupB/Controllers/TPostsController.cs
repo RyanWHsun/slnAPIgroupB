@@ -91,7 +91,7 @@ namespace prjGroupB.Controllers
             post.FContent = PostsDTO.FContent;
             post.FUpdatedAt = DateTime.Now;
             post.FIsPublic = PostsDTO.FIsPublic;
-            //post.FCategoryId = PostsDTO.FCategoryId;
+            post.FCategoryId = PostsDTO.FCategoryId;
             try
             {
                 _context.TPosts.Update(post);
@@ -117,7 +117,7 @@ namespace prjGroupB.Controllers
                 FContent = PostsDTO.FContent,
                 FCreatedAt = DateTime.Now,
                 FIsPublic = PostsDTO.FIsPublic,
-                //FCategoryId = PostsDTO.FCategoryId
+                FCategoryId = PostsDTO.FCategoryId
             };
             _context.TPosts.Add(post);
             await _context.SaveChangesAsync();
