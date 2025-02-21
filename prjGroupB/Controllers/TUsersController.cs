@@ -1,12 +1,15 @@
 ﻿using System;
 using System.Collections.Generic;
 using System.Linq;
+using System.Net;
+using System.Net.Mail;
 using System.Security.Claims;
 using System.Security.Cryptography;
 using System.Text;
 using System.Threading.Tasks;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Http;
+using Microsoft.AspNetCore.Identity.UI.Services;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.DotNet.Scaffolding.Shared.Messaging;
 using Microsoft.EntityFrameworkCore;
@@ -75,24 +78,6 @@ namespace prjGroupB.Controllers
                 }).ToListAsync();
 
             return users;    
-            
-            //return _context.TUsers.Select(
-            //    emp => new TUserDTO
-            //    {
-            //        FUserId=emp.FUserId,
-            //        FUserName=emp.FUserName,
-            //        FUserRankId= (int)emp.FUserRankId,
-            //        FUserNickName=emp.FUserNickName,
-            //        FUserEmail=emp.FUserEmail,
-            //        FUserBirthday=emp.FUserBirthday,
-            //        FUserPhone=emp.FUserPhone,
-            //        FUserSex=emp.FUserSex,
-            //        FUserAddress=emp.FUserAddress,
-            //        FUserImage = emp.FUserImage != null ? Convert.ToBase64String(emp.FUserImage) : null,
-            //        FUserComeDate= (DateTime)emp.FUserComeDate
-            //        //FUserPassword=emp.FUserPassword
-            //    }
-            //    );
         }
 
 
@@ -230,7 +215,52 @@ namespace prjGroupB.Controllers
 
 
 
+        //發送驗證信
+        
 
+
+        //修改密碼
+        [HttpPut("updateUserPassword")]
+        //[Authorize]
+        public async Task<IActionResult> PutTUserPassword([FromBody] UserLoginRequest userDTO)
+        {
+            //尋找輸入的Email
+            var userEmail = userDTO.Email;
+
+            // 查詢指定Email的用戶
+            var tUser = await _context.TUsers
+                .Where(p => p.FUserEmail == userEmail).FirstOrDefaultAsync();
+
+            // 若找不到用戶，返回 404
+            if (tUser == null)
+            {
+                return NotFound(new { message = "Email不存在" });
+            }
+
+
+
+
+
+
+
+            if (!string.IsNullOrEmpty(userDTO.Password))
+            {
+                tUser.FUserPassword = HashPassword(userDTO.Password);
+            }
+
+            //設定為已修改狀態
+            _context.Entry(tUser).State = EntityState.Modified;
+
+            try
+            {
+                await _context.SaveChangesAsync();
+            }
+            catch (DbUpdateConcurrencyException)
+            {
+                return BadRequest(new { message = "密碼修改失敗" });
+            }
+            return Ok(new { message = "密碼修改成功" });
+        }
 
 
 
@@ -329,10 +359,6 @@ namespace prjGroupB.Controllers
         }
 
 
-
-
-
-
         //新增
         // POST: api/TUsers
         // To protect from overposting attacks, see https://go.microsoft.com/fwlink/?linkid=2123754
@@ -385,6 +411,40 @@ namespace prjGroupB.Controllers
             //    return BitConverter.ToString(hashedBytes).Replace("-", "").ToLower();
             //}
         }
+
+        //發送驗證信(class)
+
+        [HttpPost("sendEmail")]
+      
+            public async Task<IActionResult> SendEmailAsync(string email, string subject, string body)
+            {
+            if (string.IsNullOrEmpty(email)) {
+                return BadRequest(new { message = "請提供完整的 Email" });
+            }
+
+                var mail = new MailMessage();
+                mail.From = new MailAddress("aminglin311@gmail.com");
+                mail.To.Add(email);
+                mail.Subject = subject;
+                mail.IsBodyHtml = true;
+                mail.Body = body;
+                SmtpClient smtpClient = new SmtpClient("smtp-mail.outlook.com");
+                smtpClient.Port = 578;
+                smtpClient.UseDefaultCredentials = false;
+                smtpClient.Credentials = new NetworkCredential("登入SMTP帳號", "登入SMTP密碼");
+
+                smtpClient.EnableSsl = true;
+                await smtpClient.SendMailAsync(mail);
+            }
+        
+
+
+
+
+
+
+
+
 
         // DELETE: api/TUsers/5
         //    [HttpDelete("{id}")]

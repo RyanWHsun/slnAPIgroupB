@@ -1,13 +1,18 @@
 ﻿using Microsoft.AspNetCore.Authentication.JwtBearer;
+using Microsoft.AspNetCore.Identity.UI.Services;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.IdentityModel.Tokens;
 using prjGroupB.Models;
 using System.Text;
+using static prjGroupB.Controllers.TUsersController;
 
 var builder = WebApplication.CreateBuilder(args);
 
 // ? 註冊 ImageService
 builder.Services.AddScoped<IImageService, ImageService>();
+
+//發送Email的工具
+builder.Services.AddScoped<IEmailSender, EmailSend>();
 
 // ? 設定資料庫連線
 builder.Services.AddDbContext<dbGroupBContext>(options =>
