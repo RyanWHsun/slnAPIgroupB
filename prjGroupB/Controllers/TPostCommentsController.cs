@@ -50,6 +50,12 @@ namespace prjGroupB.Controllers
                     FParentCommentId = e.FParentCommentId
                 });
         }
+        // GET: api/TPostComments/GetTPostCommentCount/5
+        [HttpGet("GetTPostCommentCount/{id}")]
+        public int GetTPostCommentCount(int id)
+        {
+            return _context.TPostComments.Where(e => e.FPostId == id).Count();
+        }
 
         // PUT: api/TPostComments/5
         [HttpPut("{id}")]

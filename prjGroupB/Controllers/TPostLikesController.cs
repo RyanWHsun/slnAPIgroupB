@@ -23,6 +23,13 @@ namespace prjGroupB.Controllers
             _context = context;
         }
 
+        // GET: api/TPostLikes/GetTPostLikeCount/5
+        [HttpGet("GetTPostLikeCount/{id}")]
+        public int GetTPostLikeCount(int id)
+        {
+            return _context.TPostLikes.Where(e=>e.FPostId==id).Count();
+        }
+
         // GET: api/TPostLikes/5
         [HttpGet("{id}")]
         [Authorize]
@@ -39,7 +46,6 @@ namespace prjGroupB.Controllers
                 })
                 .FirstOrDefault();
         }
-
 
         // POST: api/TPostLikes
         // To protect from overposting attacks, see https://go.microsoft.com/fwlink/?linkid=2123754
