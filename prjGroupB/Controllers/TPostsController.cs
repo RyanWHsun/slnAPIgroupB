@@ -72,20 +72,20 @@ namespace prjGroupB.Controllers
                 });
         }
 
-        // PUT: api/TPosts/id
-        [HttpPut("{id}")]
+        // PUT: api/TPosts/
+        [HttpPut]
         [Authorize]
-        public async Task<string> PutTPost(int id, TPostsDTO PostsDTO)
+        public async Task<IActionResult> PutTPost(TPostsDTO PostsDTO)
         {
             int userId = int.Parse(User.FindFirstValue(ClaimTypes.NameIdentifier));
-            TPost post = await _context.TPosts.FindAsync(id);
+            TPost post = await _context.TPosts.FindAsync(PostsDTO.FPostId);
             if (post == null)
             {
-                return "查無文章";
+                return NotFound(new { message = "查無文章" });
             }
             if (post.FUserId != userId)
             {
-                return "你沒有權限修改此文章";
+                return Unauthorized(new { message = "你沒有權限修改此文章" });
             }
             post.FTitle = PostsDTO.FTitle;
             post.FContent = PostsDTO.FContent;
@@ -99,9 +99,9 @@ namespace prjGroupB.Controllers
             }
             catch (DbUpdateException ex)
             {
-                return "修改資料庫失敗";
+                return StatusCode(500, new { message = "修改資料庫失敗" });
             }
-            return "修改文章成功";
+            return Ok(new { message = "修改成功" });
         }
 
         // POST: api/TPosts
