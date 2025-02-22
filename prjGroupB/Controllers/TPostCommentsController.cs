@@ -29,10 +29,6 @@ namespace prjGroupB.Controllers
         public async Task<IEnumerable<TPostCommentsDTO>> GetTPostComment(int id)
         {
             TPost post = await _context.TPosts.FindAsync(id);
-            if (post.FIsPublic != true)
-            {
-                return null;
-            }
             return _context.TPostComments
                 .Where(c => c.FPostId == id)
                 .OrderByDescending(t => t.FCreatedAt)
