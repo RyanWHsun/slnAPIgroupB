@@ -1,6 +1,7 @@
 ﻿using Microsoft.AspNetCore.Authentication.JwtBearer;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.IdentityModel.Tokens;
+using prjGroupB.DTO;
 using prjGroupB.Models;
 using System.Text;
 
@@ -54,6 +55,9 @@ builder.Services.AddCors(options =>
               .AllowAnyMethod(); 
     });
 });
+
+// 註冊 ECPay 設定
+builder.Services.Configure<ECPaySettings>(builder.Configuration.GetSection("ECPaySettings"));
 
 // ? 註冊 Controllers
 builder.Services.AddControllers();
