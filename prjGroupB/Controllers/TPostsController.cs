@@ -87,13 +87,25 @@ namespace prjGroupB.Controllers
         // GET: api/TPosts/
         [HttpGet]
         [Authorize]
-        public async Task<IEnumerable<TPostsDTO>> GetMyPosts(int page = 1, int pageSize = 9)
+        public async Task<IEnumerable<TPostsDTO>> GetMyPosts(int page = 1, int pageSize = 9, int categoryId = 0, string afterDate = null, string keyword = null)
         {
             int userId = int.Parse(User.FindFirstValue(ClaimTypes.NameIdentifier));
-            return _context.TPosts
-                .Where(t => t.FUserId == userId)
-                .OrderByDescending(t => t.FCreatedAt)
-                .Skip((page - 1) * pageSize)
+            var query = _context.TPosts.Where(t => t.FUserId == userId);
+            DateTime? parsedDate = string.IsNullOrEmpty(afterDate) ? null : DateTime.Parse(afterDate);
+            if (categoryId != 0)
+            {
+                query = query.Where(t => t.FCategoryId == categoryId);
+            }
+            if (afterDate != null)
+            {
+                query = query.Where(t => t.FCreatedAt >= parsedDate);
+            }
+            if (!string.IsNullOrEmpty(keyword))
+            {
+                query = query.Where(t => t.FTitle.Contains(keyword));
+            }
+            query = query.OrderByDescending(t => t.FCreatedAt);
+            return query.Skip((page - 1) * pageSize)
                 .Take(pageSize)
                 .Select(e => new TPostsDTO
                 {
@@ -107,6 +119,27 @@ namespace prjGroupB.Controllers
                     FCategoryId = e.FCategoryId
                 });
         }
+
+        //public async Task<IEnumerable<TPostsDTO>> GetMyPosts(int page = 1, int pageSize = 9)
+        //{
+        //    int userId = int.Parse(User.FindFirstValue(ClaimTypes.NameIdentifier));
+        //    return _context.TPosts
+        //        .Where(t => t.FUserId == userId)
+        //        .OrderByDescending(t => t.FCreatedAt)
+        //        .Skip((page - 1) * pageSize)
+        //        .Take(pageSize)
+        //        .Select(e => new TPostsDTO
+        //        {
+        //            FPostId = e.FPostId,
+        //            FUserId = e.FUserId,
+        //            FTitle = e.FTitle,
+        //            FContent = e.FContent,
+        //            FCreatedAt = e.FCreatedAt,
+        //            FUpdatedAt = e.FUpdatedAt,
+        //            FIsPublic = e.FIsPublic,
+        //            FCategoryId = e.FCategoryId
+        //        });
+        //}
 
         // PUT: api/TPosts/
         [HttpPut]
