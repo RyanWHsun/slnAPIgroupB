@@ -42,6 +42,9 @@ builder.Services.AddAuthentication(JwtBearerDefaults.AuthenticationScheme)
         };
     });
 
+// 註冊 SignalR
+builder.Services.AddSignalR();
+
 // ? 修正 CORS 設定
 var MyAllowSpecificOrigins = "AllowFrontend";
 
@@ -93,6 +96,9 @@ app.UseHttpsRedirection();
 // ? 啟用 JWT 驗證
 app.UseAuthentication();
 app.UseAuthorization();
+
+// 註冊 SignalR Hub
+app.MapHub<OrderHub>("/orderHub");
 
 // ? 設定路由
 app.MapControllers();

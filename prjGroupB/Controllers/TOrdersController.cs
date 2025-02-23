@@ -10,6 +10,7 @@ using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Cors;
 using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Mvc;
+using Microsoft.AspNetCore.SignalR;
 using Microsoft.EntityFrameworkCore;
 using prjGroupB.DTO;
 using prjGroupB.Models;
@@ -631,7 +632,7 @@ namespace prjGroupB.Controllers
         //中介程式GET
         [HttpGet("webhook/shipOrder/{orderId}")]
         [EnableCors("AllowQRScan")]
-        public async Task<IActionResult> WebhookShipOrder(int orderId)
+        public async Task<IActionResult> WebhookShipOrder(int orderId, [FromServices] IHubContext<OrderHub> hubContext)
         {
             try
             {
@@ -646,6 +647,8 @@ namespace prjGroupB.Controllers
 
                     if (response.IsSuccessStatusCode)
                     {
+                        // 使用 SignalR 通知前端 (sellerOrder.component)
+                        await hubContext.Clients.All.SendAsync("OrderUpdated", orderId);
                         return Ok(new { message = $"訂單 {orderId} 已成功更新！" });
                     }
                     else
