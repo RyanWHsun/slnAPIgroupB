@@ -28,13 +28,28 @@ namespace prjGroupB.Controllers
 
         // GET: api/TPosts/GetAllPosts
         [HttpGet("GetPublicPosts")]
-        public async Task<IEnumerable<TPostsDTO>> GetPublicPosts(int page = 1, int pageSize = 6)
+        public async Task<IEnumerable<TPostsDTO>> GetPublicPosts(int page = 1, int pageSize = 6, bool popular = false, int categoryId = 0, string keyword = null)
         {
-            return _context.TPosts
-                .Where(t => t.FIsPublic == true)
-                .OrderByDescending(t => t.FCreatedAt)
-                .Skip((page - 1) * pageSize)
-                .Take(pageSize)
+            var query = _context.TPosts
+        .Include(p => p.TPostLikes)
+        .Where(t => t.FIsPublic == true);
+            if (categoryId != 0)
+            {
+                query = query.Where(t => t.FCategoryId == categoryId);
+            }
+            if (!string.IsNullOrEmpty(keyword))
+            {
+                query = query.Where(t => t.FTitle.Contains(keyword));
+            }
+            if (popular)
+            {
+                query = query.OrderByDescending(t => t.TPostLikes.Count);
+            }
+            else
+            {
+                query = query.OrderByDescending(t => t.FCreatedAt);
+            }
+            return query.Skip((page - 1) * pageSize).Take(pageSize)
                 .Select(e => new TPostsDTO
                 {
                     FPostId = e.FPostId,
@@ -47,6 +62,27 @@ namespace prjGroupB.Controllers
                     FCategoryId = e.FCategoryId
                 });
         }
+
+        //public async Task<IEnumerable<TPostsDTO>> GetPublicPosts(int page = 1, int pageSize = 6)
+        //{
+        //    return _context.TPosts
+        //        .Where(t => t.FIsPublic == true)
+        //        .OrderByDescending(t => t.FCreatedAt)
+        //        .Skip((page - 1) * pageSize)
+        //        .Take(pageSize)
+        //        .Select(e => new TPostsDTO
+        //        {
+        //            FPostId = e.FPostId,
+        //            FUserId = e.FUserId,
+        //            FTitle = e.FTitle,
+        //            FContent = e.FContent,
+        //            FCreatedAt = e.FCreatedAt,
+        //            FUpdatedAt = e.FUpdatedAt,
+        //            FIsPublic = e.FIsPublic,
+        //            FCategoryId = e.FCategoryId
+        //        });
+        //}
+
 
         // GET: api/TPosts/
         [HttpGet]
