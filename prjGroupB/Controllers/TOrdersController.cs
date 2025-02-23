@@ -7,11 +7,13 @@ using System.Linq;
 using System.Security.Claims;
 using System.Threading.Tasks;
 using Microsoft.AspNetCore.Authorization;
+using Microsoft.AspNetCore.Cors;
 using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
 using prjGroupB.DTO;
 using prjGroupB.Models;
+using QRCoder;
 using static prjGroupB.DTO.TOrderCreateDTO;
 
 namespace prjGroupB.Controllers
@@ -582,6 +584,83 @@ namespace prjGroupB.Controllers
             }
         }
 
+
+        //賣家更新訂單BY QRcode 
+        //PUT :api/TOrders/shipOrder/{orderId}
+        [HttpPut("shipOrderByQR/{orderId}")]
+        [EnableCors("AllowQRScan")]
+        public async Task<IActionResult> ShipOrderByQR(int orderId)
+        {
+            try
+            {   //找訂單
+                var order = await _context.TOrders.FindAsync(orderId);
+                if (order == null)
+                {
+                    return NotFound(new { message = "訂單不存在" });
+                }
+                if (order.FOrderStatusId != 1)
+                {
+                    return Ok(new { message = "訂單已出貨" });
+                }
+                //確定訂單狀態是1
+                if (order.FOrderStatusId == 1)
+                {
+                    order.FOrderStatusId = 2; //更新為待收貨
+                                              //新增狀態歷史紀錄
+
+                    //自動產生快遞單號
+                    order.FExtraInfo = "537快遞： #" + new Random().Next(1000000, 9999999).ToString();
+                    var statusHistory = new TOrderStatusHistory
+                    {
+                        FOrderId = orderId,
+                        FOrderStatusId = 2,
+                        FStatusName = _context.TOrderStatuses.FirstOrDefault(s => s.FOrderStatusId == 2).FStatusName,
+                        FTimestamp = DateTime.Now
+                    };
+                    _context.TOrderStatusHistories.Add(statusHistory);
+                }                
+                await _context.SaveChangesAsync();
+                return Ok(new { message = "訂單狀態已更新" });
+            }
+            catch (Exception ex)
+            {
+                return StatusCode(500, new { message = "更新訂單時發生錯誤", error = ex.Message });
+            }
+        }
+
+        //中介程式GET
+        [HttpGet("webhook/shipOrder/{orderId}")]
+        [EnableCors("AllowQRScan")]
+        public async Task<IActionResult> WebhookShipOrder(int orderId)
+        {
+            try
+            {
+                Console.WriteLine($"Webhook 被觸發，訂單 ID: {orderId}");
+                using (var handler = new HttpClientHandler() { AllowAutoRedirect = true })
+                using (var client = new HttpClient())
+                {
+                    string apiUrl = $"https://localhost:7112/api/TOrders/shipOrderByQR/{orderId}";
+
+                    // 透過 `PUT` 請求更新訂單狀態
+                    var response = await client.PutAsync(apiUrl, null);
+
+                    if (response.IsSuccessStatusCode)
+                    {
+                        return Ok(new { message = $"訂單 {orderId} 已成功更新！" });
+                    }
+                    else
+                    {
+                        return StatusCode((int)response.StatusCode, new { message = "訂單更新失敗", error = await response.Content.ReadAsStringAsync() });
+                    }
+                }
+            }
+            catch (Exception ex)
+            {
+                return StatusCode(500, new { message = "內部錯誤", error = ex.Message });
+            }
+        }
+
+
         //買家更新訂單
         //PUT :api/TOrders/buyerUpdateAddress/{orderId}
         [HttpPut("buyerUpdateAddress/{orderId}")]
@@ -618,7 +697,7 @@ namespace prjGroupB.Controllers
             }
         }
 
-        //買家更新訂單
+        //買家完成訂單
         //PUT :api/TOrders/completeOrder/{orderId}
         [HttpPut("completeOrder/{orderId}")]
         public async Task<IActionResult> CompleteOrder(int orderId)
@@ -696,6 +775,37 @@ namespace prjGroupB.Controllers
                 await transaction.RollbackAsync();
                 return StatusCode(500, new { message = "更新訂單時發生錯誤，請洽客服。", error = ex.Message });
             }
+        }
+
+
+        //產生QRcode
+        [HttpGet("generateQR/{orderId}")]
+        public async Task<IActionResult> generateQRCode (int orderId)
+        {
+            try
+            {
+                //QR內容是呼叫API的URL
+                string qrText = $"https://2eb4-2001-b400-e243-dc5c-91fb-122b-8573-8df3.ngrok-free.app/api/TOrders/webhook/shipOrder/{orderId}";            
+
+                // 生成 QR Code
+                QRCodeGenerator qrGenerator = new QRCodeGenerator();
+                QRCodeData qRCodeData = qrGenerator.CreateQrCode(qrText, QRCodeGenerator.ECCLevel.Q);
+                QRCode qrCode = new QRCode(qRCodeData);
+
+              
+                using (Bitmap qrBitmap = qrCode.GetGraphic(20))
+                {
+                    using (MemoryStream ms = new MemoryStream())
+                    {
+                        await Task.Run(() => qrBitmap.Save(ms, ImageFormat.Png));
+                        return File(ms.ToArray(), "image/png");
+                    }
+                }
+            }catch(Exception ex)
+            {
+                return StatusCode(500, new { message = "生成 QR Code 失敗", error = ex.Message });
+            }
+            
         }
 
 

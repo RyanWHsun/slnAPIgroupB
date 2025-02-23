@@ -86,5 +86,14 @@ namespace prjGroupB.Controllers
 
             return Ok(testData);
         }
+
+
+        [HttpGet("StoreSelection")]
+        public IActionResult TestECPayGet()
+        {
+            Console.WriteLine("收到 ECPay 測試 GET 請求，可能在驗證 URL");
+            return Ok("ECPay 測試 GET 已收到");
+        }
+
     }
 }

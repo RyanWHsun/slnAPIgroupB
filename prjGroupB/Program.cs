@@ -54,6 +54,14 @@ builder.Services.AddCors(options =>
               .AllowAnyHeader()
               .AllowAnyMethod(); 
     });
+
+    options.AddPolicy("AllowQRScan", policy =>
+    {
+        policy.AllowAnyOrigin() // 允許所有來源
+              .WithMethods("PUT") 
+              .WithMethods("GET")
+              .AllowAnyHeader();
+    });
 });
 
 // 註冊 ECPay 設定
