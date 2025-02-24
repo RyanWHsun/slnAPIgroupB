@@ -1,6 +1,9 @@
 ﻿using Microsoft.AspNetCore.Mvc;
 using Microsoft.Extensions.Configuration;
+using Newtonsoft.Json.Linq;
+using System.Buffers.Text;
 using System.Net.Http;
+using System.Text.Json;
 using System.Threading.Tasks;
 
 namespace prjGroupB.Controllers {
@@ -32,7 +35,7 @@ namespace prjGroupB.Controllers {
         [HttpGet("getMapData")]
         public async Task<IActionResult> GetMapData() {
             string apiKey = _config["GoogleMaps:ApiKey"];
-            if (apiKey == null || apiKey=="") {
+            if (apiKey == null || apiKey == "") {
                 return BadRequest("API Key 未設定");
             }
             // callback=initMap 告訴 Google Maps API 載入完成後要執行 window.initMap()。
@@ -42,6 +45,90 @@ namespace prjGroupB.Controllers {
             // GetStringAsync(requestUrl)：發送 GET 請求至 Google Maps API，並取得回應內容（JavaScript 代碼）。
             var response = await _httpClient.GetStringAsync(requestUrl);
             return Content(response, "application/javascript");
+        }
+
+        // 根據地點名稱取得照片
+        [HttpGet("getPlacePhoto")]
+        public async Task<IActionResult> GetPlacePhotoAsync(string query) {
+            string apiKey = _config["GoogleMaps:ApiKey"];
+            if (string.IsNullOrEmpty(apiKey)) {
+                return BadRequest(new { error = "API Key 未設定" });
+            }
+
+            string baseUrl = "https://maps.googleapis.com/maps/api/place";
+
+            try {
+                // 1. 搜尋景點
+                var searchUrl = $"{baseUrl}/textsearch/json?query={query}&key={apiKey}";
+                var searchResponse = await _httpClient.GetStringAsync(searchUrl);
+
+                var json = JObject.Parse(searchResponse);
+                if (json["status"]?.ToString() != "OK") {
+                    return BadRequest(new { error = "Google Places API 回應錯誤", status = json["status"]?.ToString() });
+                }
+
+                var firstResult = json["results"]?.First;
+                if (firstResult == null) {
+                    return NotFound(new { error = "找不到景點" });
+                }
+
+                var photoReference = firstResult["photos"]?.First?["photo_reference"]?.ToString();
+                if (string.IsNullOrEmpty(photoReference)) {
+                    return NotFound(new { error = "此景點沒有照片" });
+                }
+
+                // 2. 取得照片 URL
+                var photoUrl = $"{baseUrl}/photo?maxwidth=400&photo_reference={photoReference}&key={apiKey}";
+
+                return Ok(new { photoUrl = photoUrl });
+            }
+            catch (HttpRequestException ex) {
+                return StatusCode(500, new { error = "無法連接到 Google Places API", details = ex.Message });
+            }
+        }
+
+        [HttpPost("locations/geocode")]
+        public async Task<IActionResult> GetLocations([FromBody] List<string> places) {
+            string apiKey = _config["GoogleMaps:ApiKey"];
+            if (string.IsNullOrEmpty(apiKey)) {
+                return BadRequest(new { error = "API Key 未設定" });
+            }
+
+            if (places == null || places.Count == 0) {
+                return BadRequest(new { error = "請提供至少一個景點" });
+            }
+
+            var locations = new List<object>();
+
+            foreach (var place in places) {
+                string url = $"https://maps.googleapis.com/maps/api/geocode/json?address={Uri.EscapeDataString(place)}&key={apiKey}";
+
+                var response = await _httpClient.GetAsync(url);
+                if (!response.IsSuccessStatusCode) {
+                    return StatusCode(500, $"Google API 錯誤: {response.ReasonPhrase}");
+                }
+
+                var jsonResponse = await response.Content.ReadAsStringAsync();
+                var geocodeData = JsonDocument.Parse(jsonResponse);
+
+                var results = geocodeData.RootElement.GetProperty("results");
+                if (results.GetArrayLength() == 0) {
+                    continue; // 如果沒有找到對應的地點，跳過這個地點
+                }
+
+                var location = results[0].GetProperty("geometry").GetProperty("location");
+                locations.Add(new {
+                    name = place,
+                    lat = location.GetProperty("lat").GetDouble(),
+                    lng = location.GetProperty("lng").GetDouble()
+                });
+            }
+
+            if (locations.Count == 0) {
+                return NotFound("未找到任何有效的地點");
+            }
+
+            return Ok(locations);
         }
     }
 }

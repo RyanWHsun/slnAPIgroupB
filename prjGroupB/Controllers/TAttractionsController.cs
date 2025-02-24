@@ -84,19 +84,19 @@ namespace prjGroupB.Controllers {
         // GET: api/TAttractions/Search?keyword=A&pageSize=10&pageIndex=0
         [HttpGet]
         [Route("Search")]
-        public async Task<IEnumerable<TAttractionDTO>> GetAttractionByCondition([FromQuery] string keyword = "", [FromQuery] int pageSize = 10, [FromQuery] int pageIndex = 0) {
+        public async Task<IEnumerable<TAttractionDTO>> GetAttractionByCondition([FromQuery] string keyword = "", [FromQuery] int pageSize = 9, [FromQuery] int pageIndex = 0) {
 
             // .Skip(pageSize * pageIndex):
             // 跳過 pageSize *pageIndex 筆資料。
-            // 假設 pageIndex = 0，則跳過 10 * 0 = 0 筆，表示從第一筆開始。
-            // 假設 pageIndex = 1，則跳過 10 * 1 = 10 筆，表示從第 11 筆開始。
+            // 假設 pageIndex = 0，則跳過 9 * 0 = 0 筆，表示從第一筆開始。
+            // 假設 pageIndex = 1，則跳過 9 * 1 = 9 筆，表示從第 10 筆開始。
 
             // .Take(pageSize):
             // 取出最多 pageSize 筆資料。
-            // 在這裡，表示從跳過的筆數後開始，取出最多 10 筆資料。
+            // 在這裡，表示從跳過的筆數後開始，取出最多 9 筆資料。
             var attractions = await _context.TAttractions
                 .Include(attraction => attraction.FCategory)
-                .Where(attraction => attraction.FAttractionName.ToLower().Contains(keyword.ToLower()))
+                .Where(attraction => attraction.FAttractionName.ToLower().Contains(keyword.ToLower()) || attraction.FAddress.ToLower().Contains(keyword.ToLower()))
                 .Skip(pageSize * pageIndex)
                 .Take(pageSize).ToListAsync();
 
