@@ -7,8 +7,10 @@ using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Http.HttpResults;
 using Microsoft.AspNetCore.Mvc;
+using Microsoft.AspNetCore.SignalR;
 using Microsoft.EntityFrameworkCore;
 using prjGroupB.DTO;
+using prjGroupB.Hubs;
 using prjGroupB.Models;
 
 namespace prjGroupB.Controllers
@@ -18,10 +20,11 @@ namespace prjGroupB.Controllers
     public class TPostCommentsController : ControllerBase
     {
         private readonly dbGroupBContext _context;
-
-        public TPostCommentsController(dbGroupBContext context)
+        private readonly IHubContext<ChatHub> _hubContext;
+        public TPostCommentsController(dbGroupBContext context, IHubContext<ChatHub> hubContext)
         {
             _context = context;
+            _hubContext = hubContext;
         }
 
         // GET: api/TPostComments/5
@@ -99,6 +102,11 @@ namespace prjGroupB.Controllers
             _context.TPostComments.Add(comment);
             await _context.SaveChangesAsync();
             PostCommentsDTO.FCommentId = comment.FCommentId;
+            PostCommentsDTO.FUserId = userId;
+            var queryUser = _context.TUsers.FirstOrDefault(e => e.FUserId == userId);
+            PostCommentsDTO.FUserImage = Convert.ToBase64String(queryUser.FUserImage);
+            PostCommentsDTO.FUserNickName = queryUser.FUserNickName;
+            await _hubContext.Clients.All.SendAsync("ReceiveMessage", PostCommentsDTO);
             return PostCommentsDTO;
         }
 
