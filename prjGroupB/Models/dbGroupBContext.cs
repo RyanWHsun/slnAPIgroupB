@@ -37,6 +37,8 @@ public partial class dbGroupBContext : DbContext
 
     public virtual DbSet<TAttractionViewLog> TAttractionViewLogs { get; set; }
 
+    public virtual DbSet<TChat> TChats { get; set; }
+
     public virtual DbSet<TChatRoom> TChatRooms { get; set; }
 
     public virtual DbSet<TEvent> TEvents { get; set; }
@@ -386,6 +388,29 @@ public partial class dbGroupBContext : DbContext
                 .HasForeignKey(d => d.FAttractionId)
                 .OnDelete(DeleteBehavior.Cascade)
                 .HasConstraintName("FK_tAttractionViewLogs_tAttractions");
+        });
+
+        modelBuilder.Entity<TChat>(entity =>
+        {
+            entity.HasKey(e => e.FChatId).HasName("PK_tChats_1");
+
+            entity.ToTable("tChats");
+
+            entity.Property(e => e.FChatId).HasColumnName("fChatId");
+            entity.Property(e => e.FMessageText).HasColumnName("fMessageText");
+            entity.Property(e => e.FReceiverId).HasColumnName("fReceiverId");
+            entity.Property(e => e.FSenderId).HasColumnName("fSenderId");
+            entity.Property(e => e.FSentAt)
+                .HasColumnType("datetime")
+                .HasColumnName("fSentAt");
+
+            entity.HasOne(d => d.FReceiver).WithMany(p => p.TChatFReceivers)
+                .HasForeignKey(d => d.FReceiverId)
+                .HasConstraintName("FK_tChats_tUser1");
+
+            entity.HasOne(d => d.FSender).WithMany(p => p.TChatFSenders)
+                .HasForeignKey(d => d.FSenderId)
+                .HasConstraintName("FK_tChats_tUser");
         });
 
         modelBuilder.Entity<TChatRoom>(entity =>
@@ -937,6 +962,7 @@ public partial class dbGroupBContext : DbContext
 
             entity.HasOne(d => d.FPost).WithMany(p => p.TPostLikes)
                 .HasForeignKey(d => d.FPostId)
+                .OnDelete(DeleteBehavior.Cascade)
                 .HasConstraintName("FK_tPostLikes_tPosts");
 
             entity.HasOne(d => d.FUser).WithMany(p => p.TPostLikes)
