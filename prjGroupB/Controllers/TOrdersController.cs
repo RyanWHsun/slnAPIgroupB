@@ -83,6 +83,8 @@ namespace prjGroupB.Controllers
         [Authorize]
         public async Task<IActionResult> Checkout([FromBody] CheckoutRequestDTO checkoutRequest)
         {
+            Console.WriteLine("🚀 進入 Checkout API"); // ✅ 記錄 API 被呼叫
+            Console.WriteLine($"Request Body: {System.Text.Json.JsonSerializer.Serialize(checkoutRequest)}"); // ✅ 記錄請求內容
             await using var transaction = await _context.Database.BeginTransactionAsync(); //加入交易機制
             try
             {
