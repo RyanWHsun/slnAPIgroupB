@@ -25,9 +25,6 @@ public class EventController : ControllerBase
             var events = await _context.TEvents
                 .Include(e => e.TEventLocations)
                 .Include(e => e.TEventImages)
-                .Include(e => e.TEventSchedules)
-                .Include(e => e.TEventRegistrationForms)
-                    .ThenInclude(r => r.TEventPayments)
                 .Select(e => new
                 {
                     e.FEventId,
@@ -38,12 +35,9 @@ public class EventController : ControllerBase
                     FLocation = e.TEventLocations.Any()
                         ? e.TEventLocations.FirstOrDefault().FLocationName
                         : "未知地點",
-                    FParticipant = e.TEventRegistrationForms
-                        .Count(r => r.FRegistrationStatus == "Confirmed"),
-                    RegistrationFee = e.TEventRegistrationForms
-                        .SelectMany(r => r.TEventPayments)
-                        .Where(p => p.FPaymentStatus == "Paid")
-                        .Sum(p => p.FAmount),
+                    FParticipant = e.FCurrentParticipants, // ✅ 直接使用資料庫現有人數
+                    FDuration = e.FEventDuration, // ✅ 直接使用活動天數
+                    FPrice = e.FEventFee, // ✅ 直接使用活動價格
                     ImageBase64 = e.TEventImages.Any()
                         ? "data:image/png;base64," + Convert.ToBase64String(e.TEventImages.First().FEventImage)
                         : null
@@ -65,9 +59,6 @@ public class EventController : ControllerBase
         var eventItem = await _context.TEvents
             .Include(e => e.TEventLocations)
             .Include(e => e.TEventImages)
-            .Include(e => e.TEventSchedules)
-            .Include(e => e.TEventRegistrationForms)
-                .ThenInclude(r => r.TEventPayments)
             .FirstOrDefaultAsync(e => e.FEventId == id);
 
         if (eventItem == null)
@@ -76,7 +67,7 @@ public class EventController : ControllerBase
         }
 
         var eventImage = eventItem.TEventImages.FirstOrDefault();
-        string defaultImage = "https://your-cdn.com/default-event.jpg"; // ✅ 預設圖片 URL
+        string defaultImage = "https://your-cdn.com/default-event.jpg";
 
         var result = new
         {
@@ -85,15 +76,13 @@ public class EventController : ControllerBase
             eventItem.FEventDescription,
             eventItem.FEventStartDate,
             eventItem.FEventEndDate,
-            fLocation = eventItem.TEventLocations.Any()
+            FLocation = eventItem.TEventLocations.Any()
                 ? eventItem.TEventLocations.FirstOrDefault().FLocationName
                 : "未提供",
-            FParticipant = eventItem.TEventRegistrationForms.Count(),
-            RegistrationFee = eventItem.TEventRegistrationForms
-                .SelectMany(r => r.TEventPayments)
-                .Where(p => p.FPaymentStatus == "Paid")
-                .Sum(p => p.FAmount),
-            imageBase64 = eventImage != null
+            FParticipant = eventItem.FCurrentParticipants, // ✅ 正確取人數
+            FDuration = eventItem.FEventDuration, // ✅ 正確取天數
+            FPrice = eventItem.FEventFee, // ✅ 正確取價格
+            ImageBase64 = eventImage != null
                 ? "data:image/png;base64," + Convert.ToBase64String(eventImage.FEventImage)
                 : defaultImage
         };

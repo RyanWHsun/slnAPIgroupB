@@ -88,6 +88,23 @@ namespace prjGroupB.Controllers {
             return Ok(new { Message = "登入成功"});
         }
 
+        // 驗證是不是管理者
+        [HttpGet("isAdmin")]
+        [Authorize]
+        public IActionResult IsAdmin() {
+            // FindFirstValue(): 從 User.Claims 查找 第一個符合 ClaimTypes.NameIdentifier 的 Claim，並回傳它的值。
+            // ClaimTypes.NameIdentifier 是一個 標準的 Claim 類型，表示「使用者的唯一識別碼」（通常是 UserId）。
+            var userIdValue = User.FindFirstValue(ClaimTypes.NameIdentifier);
+            int userId = int.TryParse(userIdValue, out var parsedId) ? parsedId : 0;
+            var user = _context.TUsers.FirstOrDefault(user => user.FUserId == userId);
+            
+            if(user == null || user.FUserRankId != 99) {
+                return Forbid(); // 403 Forbidden，使用者無權限
+            }
+
+            return Ok(new { isAdmin = true });
+        }
+
         //登出
         [HttpPost("logout")]
         public IActionResult LogOut()
