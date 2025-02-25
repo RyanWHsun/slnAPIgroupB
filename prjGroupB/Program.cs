@@ -1,12 +1,11 @@
 ﻿using Microsoft.AspNetCore.Authentication.JwtBearer;
-using Microsoft.AspNetCore.Identity.UI.Services;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.IdentityModel.Tokens;
 using prjGroupB.Hubs;
 using prjGroupB.DTO;
 using prjGroupB.Models;
 using System.Text;
-using static prjGroupB.Controllers.TUsersController;
+using Microsoft.AspNetCore.SignalR;
 
 var builder = WebApplication.CreateBuilder(args);
 
@@ -29,6 +28,7 @@ builder.Services.AddDbContext<dbGroupBContext>(options =>
     options.UseSqlServer(builder.Configuration.GetConnectionString("dbGroupB")));
 // 註冊SignalR
 builder.Services.AddSignalR();
+builder.Services.AddSingleton<IUserIdProvider, UserIdProvider>();
 
 // ? 註冊 LinePayService（**改用 dbContext 來讀取資料庫**）
 builder.Services.AddScoped<LinePayService>();
