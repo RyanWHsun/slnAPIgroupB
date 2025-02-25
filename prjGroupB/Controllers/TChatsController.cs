@@ -1,4 +1,5 @@
 ﻿using System;
+using System.Collections;
 using System.Collections.Generic;
 using System.Linq;
 using System.Security.Claims;
@@ -42,8 +43,24 @@ namespace prjGroupB.Controllers
                     FSenderId = e.FSenderId,
                     FReceiverId = e.FReceiverId,
                     FMessageText = e.FMessageText,
-                    FSentAt = e.FSentAt
+                    FSentAt = e.FSentAt.ToString()
                 });
+        }
+        [HttpGet("Contact")]
+        [Authorize]
+        public IEnumerable<int?> GetContact()
+        {
+            int userId = int.Parse(User.FindFirstValue(ClaimTypes.NameIdentifier));
+            return _context.TChats
+                .Where(c => c.FSenderId == userId || c.FReceiverId == userId)
+                .GroupBy(c => c.FSenderId == userId ? c.FReceiverId : c.FSenderId)
+                .Select(g => new
+                {
+                    ContactedUserID = g.Key,
+                    LastContactTime = g.Max(c => c.FSentAt)
+                })
+                .OrderByDescending(g => g.LastContactTime)
+                .Select(e => e.ContactedUserID);
         }
 
 

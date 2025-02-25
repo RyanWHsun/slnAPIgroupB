@@ -10,6 +10,6 @@
 
         public string? FMessageText { get; set; }
 
-        public DateTime? FSentAt { get; set; }
+        public string? FSentAt { get; set; }
     }
 }
