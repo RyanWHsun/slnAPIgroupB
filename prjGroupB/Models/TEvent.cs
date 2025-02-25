@@ -27,13 +27,13 @@ public partial class TEvent
 
     public bool? FEventIsActive { get; set; }
 
-    public int? FmaxParticipants { get; set; }
+    public int? FMaxParticipants { get; set; }
 
-    public int? FcurrentParticipants { get; set; }
+    public int? FCurrentParticipants { get; set; }
 
-    public int? FeventDuration { get; set; }
+    public int? FEventDuration { get; set; }
 
-    public decimal? FeventFee { get; set; }
+    public decimal? FEventFee { get; set; }
 
     public virtual ICollection<TEventCategoryMapping> TEventCategoryMappings { get; set; } = new List<TEventCategoryMapping>();
 

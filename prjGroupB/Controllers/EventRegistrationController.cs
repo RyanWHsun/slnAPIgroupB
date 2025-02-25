@@ -1,10 +1,13 @@
 ﻿using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
+using Microsoft.IdentityModel.Tokens;
 using prjGroupB.Models;
 using System;
+using System.IdentityModel.Tokens.Jwt;
 using System.Linq;
 using System.Security.Claims;
+using System.Text;
 using System.Threading.Tasks;
 
 namespace prjGroupB.Controllers
@@ -14,13 +17,14 @@ namespace prjGroupB.Controllers
     public class EventRegistrationController : ControllerBase
     {
         private readonly dbGroupBContext _context;
+        private readonly string _secretKey = "b6t8fJH2WjwYgJt7XPTqVX37WYgKs8TZ"; // JWT 密鑰 (與 AuthController 相同)
 
         public EventRegistrationController(dbGroupBContext context)
         {
             _context = context;
         }
 
-        // 🔹 取得某活動的所有報名資訊
+        // 🔹 取得活動報名列表
         [HttpGet("{eventId}")]
         public async Task<ActionResult<IEnumerable<object>>> GetRegistrations(int eventId)
         {
@@ -32,7 +36,7 @@ namespace prjGroupB.Controllers
                     r.FEventRegistrationFormId,
                     r.FEventId,
                     r.FUserId,
-                    UserName = r.FUser.FUserName,  // 使用者名稱
+                    UserName = r.FUser.FUserName,
                     r.FEregistrationDate,
                     r.FRegistrationStatus
                 })
@@ -41,16 +45,22 @@ namespace prjGroupB.Controllers
             return Ok(registrations);
         }
 
-        // 🔹 使用者報名活動（需要登入）
-        [HttpPost]
-        [Authorize] // ⬅ 這行確保 API 只能讓已登入使用者呼叫
+        // 🔹 使用者報名活動（確保 JWT Cookie 驗證）
+        [HttpPost("register")]
         public async Task<IActionResult> RegisterForEvent([FromBody] TEventRegistrationForm registration)
         {
-            // ✅ 取得當前登入使用者 ID
-            var userId = User.FindFirstValue(ClaimTypes.NameIdentifier);
-            if (userId == null)
+            // ✅ 從 Cookie 取得 JWT Token
+            var token = Request.Cookies["jwt_token"];
+            if (string.IsNullOrEmpty(token))
             {
                 return Unauthorized(new { message = "請先登入" });
+            }
+
+            // ✅ 解析 JWT Token 取得 User ID
+            var userId = GetUserIdFromToken(token);
+            if (userId == null)
+            {
+                return Unauthorized(new { message = "無效的登入憑證" });
             }
 
             // ✅ 檢查活動是否存在
@@ -60,22 +70,18 @@ namespace prjGroupB.Controllers
                 return NotFound(new { message = "活動不存在" });
             }
 
-            // 檢查活動是否已達到報名人數上限
+            // ✅ 檢查活動是否已達報名上限
             int registeredCount = await _context.TEventRegistrationForms
                 .CountAsync(r => r.FEventId == registration.FEventId);
 
-            if (eventItem.FmaxParticipants != null && registeredCount >= eventItem.FmaxParticipants)
+            if (eventItem.FMaxParticipants != null && registeredCount >= eventItem.FMaxParticipants)
             {
                 return BadRequest(new { message = "報名人數已滿，無法報名" });
             }
 
-            // 報名成功後，更新已報名人數
-            eventItem.FcurrentParticipants = registeredCount + 1;
-            await _context.SaveChangesAsync();
-
             // ✅ 檢查是否已報名
             var existingRegistration = await _context.TEventRegistrationForms
-                .FirstOrDefaultAsync(r => r.FEventId == registration.FEventId && r.FUserId == int.Parse(userId));
+                .FirstOrDefaultAsync(r => r.FEventId == registration.FEventId && r.FUserId == userId);
 
             if (existingRegistration != null)
             {
@@ -83,7 +89,7 @@ namespace prjGroupB.Controllers
             }
 
             // ✅ 設定報名資訊
-            registration.FUserId = int.Parse(userId); // 設定登入使用者 ID
+            registration.FUserId = (int)userId;
             registration.FEregistrationDate = DateTime.UtcNow;
             registration.FRegistrationStatus = "已報名";
 
@@ -93,34 +99,33 @@ namespace prjGroupB.Controllers
             return Ok(new { message = "報名成功" });
         }
 
-        // 🔹 取消報名（需要登入）
-        [HttpDelete("{registrationId}")]
-        [Authorize] // ⬅ 這行確保 API 只能讓已登入使用者呼叫
-        public async Task<IActionResult> CancelRegistration(int registrationId)
+        // ✅ JWT 解碼方法
+        private int? GetUserIdFromToken(string token)
         {
-            // ✅ 取得當前登入使用者 ID
-            var userId = User.FindFirstValue(ClaimTypes.NameIdentifier);
-            if (userId == null)
+            try
             {
-                return Unauthorized(new { message = "請先登入" });
-            }
+                var tokenHandler = new JwtSecurityTokenHandler();
+                var key = Encoding.UTF8.GetBytes(_secretKey);
+                var validationParameters = new TokenValidationParameters
+                {
+                    ValidateIssuer = true,
+                    ValidateAudience = true,
+                    ValidIssuer = "http://localhost:7112",
+                    ValidAudience = "http://localhost:4200",
+                    ValidateLifetime = true,
+                    IssuerSigningKey = new SymmetricSecurityKey(key),
+                    ValidateIssuerSigningKey = true,
+                };
 
-            var registration = await _context.TEventRegistrationForms.FindAsync(registrationId);
-            if (registration == null)
+                var principal = tokenHandler.ValidateToken(token, validationParameters, out _);
+                var userIdClaim = principal.Claims.FirstOrDefault(c => c.Type == ClaimTypes.NameIdentifier)?.Value;
+
+                return userIdClaim != null ? int.Parse(userIdClaim) : (int?)null;
+            }
+            catch
             {
-                return NotFound(new { message = "報名資料不存在" });
+                return null;
             }
-
-            // ✅ 確保只能取消自己的報名
-            if (registration.FUserId != int.Parse(userId))
-            {
-                return Forbid();
-            }
-
-            _context.TEventRegistrationForms.Remove(registration);
-            await _context.SaveChangesAsync();
-
-            return Ok(new { message = "取消報名成功" });
         }
     }
 }

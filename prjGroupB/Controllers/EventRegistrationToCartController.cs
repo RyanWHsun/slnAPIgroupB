@@ -34,17 +34,6 @@ namespace prjGroupB.Controllers
                 return NotFound(new { message = "活動不存在" });
             }
 
-            // 🔹 檢查是否已報名此活動（避免重複加入）
-            var existingItem = await _context.TShoppingCartItems
-                .FirstOrDefaultAsync(i => _context.TShoppingCarts.Any(c => c.FCartId == i.FCartId && c.FUserId == userId) &&
-                                          i.FItemType == "eventFee" &&
-                                          i.FItemId == eventId);
-
-            if (existingItem != null)
-            {
-                return Conflict(new { message = "您已報名過此活動" });
-            }
-
             // 🔹 檢查是否已存在購物車
             var existingCart = await _context.TShoppingCarts
                 .Include(c => c.TShoppingCartItems)
@@ -63,8 +52,17 @@ namespace prjGroupB.Controllers
                 await _context.SaveChangesAsync();
             }
 
+            // 🔹 檢查是否已加入購物車，避免重複報名
+            var existingItem = await _context.TShoppingCartItems
+                .FirstOrDefaultAsync(i => i.FCartId == existingCart.FCartId && i.FItemType == "eventFee" && i.FItemId == eventId);
+
+            if (existingItem != null)
+            {
+                return Conflict(new { message = "您已將此活動加入購物車" });
+            }
+
             // 🔹 設定活動報名價格
-            decimal eventPrice = eventItem.FeventFee ?? 0m;
+            decimal eventPrice = eventItem.FEventFee ?? 0m;
 
             // 🔹 新增活動至購物車
             var newItem = new TShoppingCartItem
@@ -73,8 +71,9 @@ namespace prjGroupB.Controllers
                 FItemType = "eventFee",  // ✅ 確保是活動報名
                 FItemId = eventId,
                 FQuantity = 1,  // ✅ 活動報名固定數量 1
-                //FPrice = eventPrice
+                FPrice = eventPrice
             };
+
             _context.TShoppingCartItems.Add(newItem);
             await _context.SaveChangesAsync();
 

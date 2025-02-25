@@ -61,6 +61,7 @@ namespace prjGroupB.Controllers {
                         FUserId = comment.FUserId,
                         FUserName = comment.FUser.FUserName,
                         FUserNickName = comment.FUser.FUserNickName,
+                        FUserImage = comment.FUser.FUserImage != null ? Convert.ToBase64String(comment.FUser.FUserImage) : null,
                         FRating = comment.FRating,
                         FComment = comment.FComment,
                         FCreatedDate = comment.FCreatedDate
@@ -103,6 +104,7 @@ namespace prjGroupB.Controllers {
                         FUserId = comment.FUserId,
                         FUserName = comment.FUser.FUserName,
                         FUserNickName = comment.FUser.FUserNickName,
+                        FUserImage = comment.FUser.FUserImage != null ? Convert.ToBase64String(comment.FUser.FUserImage) : null,
                         FRating = comment.FRating,
                         FComment = comment.FComment,
                         FCreatedDate = comment.FCreatedDate
@@ -146,35 +148,33 @@ namespace prjGroupB.Controllers {
             return attractionCommentDTOs;
         }
 
-        // get an user info
+        // https://localhost:7112/api/TAttractionComments/commenter
+        // 取得評論者(也就是登入用戶)的資訊
         [HttpGet("commenter")]
         [Authorize]
-        public async Task<TUserDTO> GetCommenterInfo() {
+        public async Task<ActionResult<TCommenterDTO>> GetCommenterInfo() {
             // FindFirstValue(): 從 User.Claims 查找 第一個符合 ClaimTypes.NameIdentifier 的 Claim，並回傳它的值。
             // ClaimTypes.NameIdentifier 是一個 標準的 Claim 類型，表示「使用者的唯一識別碼」（通常是 UserId）。
             var userIdValue = User.FindFirstValue(ClaimTypes.NameIdentifier);
             int userId = int.TryParse(userIdValue, out var parsedId) ? parsedId : 0;
-            if (userId == 0) return null;
+            if (userId == 0) {
+                return BadRequest("user Id 不存在");
+            }
 
             var user = await _context.TUsers.FindAsync(userId);
-            if (user == null) return null;
+            if (user == null) {
+                return BadRequest("user 不存在");
+            }
 
-            var userDto = new TUserDTO {
+            var userDto = new TCommenterDTO {
                 FUserId = user.FUserId,
-                FUserRankId = user.FUserRankId.HasValue ? user.FUserRankId.Value : 0,
                 FUserName = user.FUserName,
-                FUserImage = user.FUserImage != null ? Convert.ToBase64String(user.FUserImage) : null,
                 FUserNickName = user.FUserNickName,
-                FUserSex = user.FUserSex,
-                FUserBirthday = user.FUserBirthday,
-                FUserPhone = user.FUserPhone,
-                FUserEmail = user.FUserEmail,
-                FUserAddress = user.FUserAddress,
-                FUserComeDate = user.FUserComeDate ?? DateTime.Now,
-                FUserPassword = user.FUserPassword
+                FUserImage = user.FUserImage != null ? Convert.ToBase64String(user.FUserImage) : null,
+                FUserRankId = user.FUserRankId.HasValue ? user.FUserRankId.Value : 0,
             };
 
-            return userDto;
+            return Ok(userDto);
         }
 
         // PUT: api/TAttractionComments/5

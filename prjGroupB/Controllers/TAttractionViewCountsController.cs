@@ -45,7 +45,7 @@ namespace prjGroupB.Controllers {
             DateTime timeLimit = DateTime.UtcNow.AddHours(8).AddMinutes(-5); // 限制 5 分鐘內不重複計數
             // DateTime timeLimit = DateTime.UtcNow.AddHours(8).AddDays(-1); // 限制 1 天內不重複計數
 
-            // 檢查是否在 10 分鐘內有觀看記錄
+            // 檢查是否在 5 分鐘內有觀看記錄
             var recentView = await _context.TAttractionViewLogs.FirstOrDefaultAsync(v => v.FAttractionId == IdObj.Id && v.FUserIp == userIp && v.FViewTime > timeLimit);
 
             if (recentView == null) {
