@@ -1,15 +1,19 @@
 ﻿using Microsoft.AspNetCore.Authentication.JwtBearer;
+using Microsoft.AspNetCore.Identity.UI.Services;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.IdentityModel.Tokens;
 using prjGroupB.Hubs;
 using prjGroupB.DTO;
 using prjGroupB.Models;
 using System.Text;
+using static prjGroupB.Controllers.TUsersController;
 
 var builder = WebApplication.CreateBuilder(args);
 
 // ? 註冊 ImageService
 builder.Services.AddScoped<IImageService, ImageService>();
+
+
 
 // ? 設定資料庫連線
 builder.Services.AddDbContext<dbGroupBContext>(options =>
