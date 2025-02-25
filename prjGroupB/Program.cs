@@ -1,8 +1,12 @@
 ﻿using Microsoft.AspNetCore.Authentication.JwtBearer;
+using Microsoft.AspNetCore.Identity.UI.Services;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.IdentityModel.Tokens;
+using prjGroupB.Hubs;
+using prjGroupB.DTO;
 using prjGroupB.Models;
 using System.Text;
+using static prjGroupB.Controllers.TUsersController;
 
 var builder = WebApplication.CreateBuilder(args);
 
@@ -18,9 +22,13 @@ Console.WriteLine("🔹 ConnectionString: " + connectionString);
 // ? 註冊 ImageService
 builder.Services.AddScoped<IImageService, ImageService>();
 
+
+
 // ? 設定資料庫連線
 builder.Services.AddDbContext<dbGroupBContext>(options =>
-    options.UseSqlServer(connectionString));
+    options.UseSqlServer(builder.Configuration.GetConnectionString("dbGroupB")));
+// 註冊SignalR
+builder.Services.AddSignalR();
 
 // ? 註冊 LinePayService（**改用 dbContext 來讀取資料庫**）
 builder.Services.AddScoped<LinePayService>();
@@ -55,7 +63,7 @@ builder.Services.AddAuthentication(JwtBearerDefaults.AuthenticationScheme)
         };
     });
 
-// ? 修正 CORS 設定，確保允許 `POST`、`PUT`、`DELETE`
+// ? 修正 CORS 設定
 var MyAllowSpecificOrigins = "AllowFrontend";
 
 builder.Services.AddCors(options =>
@@ -63,17 +71,28 @@ builder.Services.AddCors(options =>
     options.AddPolicy(MyAllowSpecificOrigins, policy =>
     {
         policy.WithOrigins("http://localhost:4200")
+              .AllowCredentials()// 允許攜帶 Cookie
               .AllowAnyHeader()
-              .AllowAnyMethod()
-              .AllowCredentials(); // ✅ 確保允許 Cookies
+              .AllowAnyMethod(); 
+    });
+
+    options.AddPolicy("AllowQRScan", policy =>
+    {
+        policy.AllowAnyOrigin() // 允許所有來源
+              .WithMethods("PUT") 
+              .WithMethods("GET")
+              .AllowAnyHeader();
     });
 });
+
+// 註冊 ECPay 設定
+builder.Services.Configure<ECPaySettings>(builder.Configuration.GetSection("ECPaySettings"));
 
 // ? 註冊 Controllers
 builder.Services.AddControllers();
 builder.Services.AddEndpointsApiExplorer();
 
-// ? 設定 Swagger 支援 JWT
+// ? 設定 Swagger 支援 JWT LINE PAY
 builder.Services.AddSwaggerGen(options =>
 {
     options.AddSecurityDefinition("Bearer", new Microsoft.OpenApi.Models.OpenApiSecurityScheme
@@ -107,7 +126,7 @@ builder.Services.AddHttpClient();
 
 var app = builder.Build();
 
-// ✅ **測試 API (確認是否成功連接資料庫)**
+// ✅ **測試 API (確認是否成功連接資料庫)** LINE PAY
 app.MapGet("/api/test-connection", async (dbGroupBContext context) =>
 {
     try
@@ -128,18 +147,24 @@ if (app.Environment.IsDevelopment())
     app.UseSwaggerUI();
 }
 
-// ? 確保 CORS 設定生效（這行要放在 `UseAuthorization` 之前）
+// ? 確保 CORS 設定生效
 app.UseCors(MyAllowSpecificOrigins);
 
-// ? 先註解掉 `HTTPS Redirect`，避免本地測試失敗
-// app.UseHttpsRedirection();
+// ? 啟用 HTTPS 重新導向
+app.UseHttpsRedirection();
 
 // ? 啟用 JWT 驗證
 app.UseAuthentication();
 app.UseAuthorization();
+//註冊SignalR Hub
+app.MapHub<ChatHub>("/chatHub");
+
+// 註冊 SignalR Hub
+app.MapHub<OrderHub>("/orderHub");
 
 // ? 設定路由
 app.MapControllers();
+
 
 // ? 啟動應用程式
 app.Run();

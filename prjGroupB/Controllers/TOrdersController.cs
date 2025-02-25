@@ -7,11 +7,14 @@ using System.Linq;
 using System.Security.Claims;
 using System.Threading.Tasks;
 using Microsoft.AspNetCore.Authorization;
+using Microsoft.AspNetCore.Cors;
 using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Mvc;
+using Microsoft.AspNetCore.SignalR;
 using Microsoft.EntityFrameworkCore;
 using prjGroupB.DTO;
 using prjGroupB.Models;
+using QRCoder;
 using static prjGroupB.DTO.TOrderCreateDTO;
 
 namespace prjGroupB.Controllers
@@ -70,7 +73,7 @@ namespace prjGroupB.Controllers
                     TotalBalance = totalBalance
                 });
             }
-            catch (Exception ex)
+            catch (Exception ex) 
             {
                 return StatusCode(500, new { message = "無法獲取會員資訊與錢包餘額", error = ex.Message });
             }
@@ -138,9 +141,9 @@ namespace prjGroupB.Controllers
                     .GroupBy(item => item.FSellerId)
                     .ToList();
 
-                //活動&票券依類別分組
+                //票券依類別分組
                 var attractionOrders = checkoutRequest.SelectedItems
-                    .Where(item => item.FItemType == "attractionTicket")
+                    .Where(item=>item.FItemType == "attractionTicket")
                     .GroupBy(item => item.FItemType)
                     .ToList();
 
@@ -217,13 +220,13 @@ namespace prjGroupB.Controllers
                 }
 
                 //處理活動
-                if (eventOrders.Any())
+                if (eventOrders.Any()) 
                 {
                     foreach (var group in eventOrders)
                     {
                         var eventItem = group.FirstOrDefault();
 
-                        if (eventItem != null)
+                        if (eventItem != null) 
                         {
                             var newEvent = new TEventRegistrationForm
                             {
@@ -259,16 +262,68 @@ namespace prjGroupB.Controllers
                                 };
                                 _context.TWallets.Add(walletTransaction);
                             }
+                        }                         
+                    }
+                }
+
+
+                //處理活動
+                if (attractionOrders.Any())
+                {
+                    foreach (var group in attractionOrders)
+                    {
+                        var attractionItem = group.FirstOrDefault();
+
+                        if (attractionItem != null)
+                        {
+                            var unitPrice = GetItemPrice(attractionItem.FItemType, attractionItem.FItemId);
+                            var newTicket = new TAttractionTicketOrder
+                            {
+                                FBuyerId=buyerId,
+                                FAttractionTicketId=attractionItem.FItemId,
+                                FCreatedDate=DateTime.Now,
+                                FOrderQty=attractionItem.FQuantity,
+                                FUnitPrice=unitPrice                            
+                            };
+                            _context.TAttractionTicketOrders.Add(newTicket);
+                            await _context.SaveChangesAsync();
+                            var orderTotal = 0m;
+
+                            foreach (var item in group)
+                            {
+                                orderTotal += unitPrice * newTicket.FOrderQty.GetValueOrDefault();
+
+                                //刪除購物車內該商品
+                                var cartItem = await _context.TShoppingCartItems.FindAsync(item.FCartItemId);
+                                if (cartItem != null)
+                                {
+                                    _context.TShoppingCartItems.Remove(cartItem);
+                                }
+                            }
+                            if (checkoutRequest.FPaymentMethod == "Wallet")
+                            {
+                                var walletTransaction = new TWallet
+                                {
+                                    FUserId = buyerId,
+                                    FAmountChange = (int)(-orderTotal), // 扣款，確保轉換為 int
+                                    FChangeLog = $"付款：票券報名編號{newTicket.FAttractionTicketOrderId}",
+                                    FChangeTime = DateTime.Now
+                                };
+                                _context.TWallets.Add(walletTransaction);
+                            }
                         }
                     }
                 }
+
+
+
                 int affectedRows = await _context.SaveChangesAsync(); // 這裡檢查是否成功寫入
                 await transaction.CommitAsync(); //提交交易
                 if (affectedRows == 0)
                 {
                     return StatusCode(500, new { message = "訂單建立失敗，未能寫入資料庫" });
                 }
-                return Ok(new { message = "訂單建立成功" });
+                return Ok(new { message = "訂單建立成功"});
             }
             catch (Exception ex)
             {
@@ -279,29 +334,38 @@ namespace prjGroupB.Controllers
 
         private decimal GetItemPrice(string itemType, int itemId)
         {
-            switch (itemType)
+            try
             {
-                case "product":
-                    return _context.TProducts
-                               .Where(p => p.FProductId == itemId)
-                               .Select(p => (decimal?)p.FProductPrice) // 使用 decimal? 避免 null
-                               .FirstOrDefault() ?? 0; // 如果 null，則預設回傳 0
+                switch (itemType)
+                {
+                    case "product":
+                        return _context.TProducts
+                                   .Where(p => p.FProductId == itemId)
+                                   .Select(p => (decimal?)p.FProductPrice) // 使用 decimal? 避免 null
+                                   .FirstOrDefault() ?? 0; // 如果 null，則預設回傳 0
 
-                case "attractionTicket":
-                    return _context.TAttractionTickets
-                               .Where(t => t.FAttractionTicketId == itemId)
-                               .Select(t => (decimal?)t.FPrice)
-                               .FirstOrDefault() ?? 0;
+                    case "attractionTicket":
+                        return _context.TAttractionTickets
+                                   .Where(t => t.FAttractionTicketId == itemId)
+                                   .Select(t => (decimal?)t.FPrice)
+                                   .FirstOrDefault() ?? 0;
 
-                case "eventFee":
-                    return _context.TEvents
-                               .Where(e => e.FEventId == itemId)
-                               .Select(e => (decimal?)e.FEventFee)
-                               .FirstOrDefault() ?? 0;
+                    case "eventFee":
+                        return _context.TEvents
+                                   .Where(e => e.FEventId == itemId)
+                                   .Select(e => (decimal?)e.FEventFee)
+                                   .FirstOrDefault() ?? 0;
 
-                default:
-                    return 0; // 預設回傳 0 避免錯誤
+                    default:
+                        return 0; // 預設回傳 0 避免錯誤
+                }
             }
+            catch(Exception ex)
+            {
+                Console.WriteLine("產生價格有誤", ex.Message);
+                return 0;
+            }
+
         }
 
         //取得買家所有訂單
@@ -349,7 +413,7 @@ namespace prjGroupB.Controllers
                 }
                 return Ok(orders);
             }
-            catch (Exception ex)
+            catch (Exception ex) 
             {
                 return StatusCode(500, new { message = "獲取訂單時發生錯誤", error = ex.Message });
             }
@@ -413,23 +477,31 @@ namespace prjGroupB.Controllers
 
         private static string ConvertToThumbnailBase64(byte[] fUserImage, int width, int height)
         {
-            using (var ms = new MemoryStream(fUserImage))
+            try
             {
-                // 使用 System.Drawing 讀取圖片
-                using (var image = Image.FromStream(ms))
+                using (var ms = new MemoryStream(fUserImage))
                 {
-                    // 建立縮圖
-                    using (var thumbnail = image.GetThumbnailImage(width, height, () => false, IntPtr.Zero))
+                    // 使用 System.Drawing 讀取圖片
+                    using (var image = Image.FromStream(ms))
                     {
-                        using (var thumbnailStream = new MemoryStream())
+                        // 建立縮圖
+                        using (var thumbnail = image.GetThumbnailImage(width, height, () => false, IntPtr.Zero))
                         {
-                            // 儲存縮圖到記憶體流
-                            thumbnail.Save(thumbnailStream, ImageFormat.Png);
-                            // 將縮圖轉換為 Base64
-                            return Convert.ToBase64String(thumbnailStream.ToArray());
+                            using (var thumbnailStream = new MemoryStream())
+                            {
+                                // 儲存縮圖到記憶體流
+                                thumbnail.Save(thumbnailStream, ImageFormat.Png);
+                                // 將縮圖轉換為 Base64
+                                return Convert.ToBase64String(thumbnailStream.ToArray());
+                            }
                         }
                     }
                 }
+            }
+            catch(Exception ex)
+            {
+                Console.WriteLine($"縮圖轉換失敗: {ex.Message}");
+                return null;
             }
         }
 
@@ -508,7 +580,7 @@ namespace prjGroupB.Controllers
                 if (order.FOrderStatusId == 1)
                 {
                     order.FOrderStatusId = 2; //更新為待收貨
-                                              //新增狀態歷史紀錄
+                                          //新增狀態歷史紀錄
                     var statusHistory = new TOrderStatusHistory
                     {
                         FOrderId = orderId,
@@ -521,6 +593,50 @@ namespace prjGroupB.Controllers
                 order.FExtraInfo = shipOrderDTO.extraInfo;
 
                 await _context.SaveChangesAsync();
+                return Ok(new { message = "訂單狀態已更新" }); 
+            }
+            catch (Exception ex)
+            {
+                return StatusCode(500, new { message = "更新訂單時發生錯誤", error = ex.Message });
+            }
+        }
+
+
+        //賣家更新訂單BY QRcode 
+        //PUT :api/TOrders/shipOrder/{orderId}
+        [HttpPut("shipOrderByQR/{orderId}")]
+        [EnableCors("AllowQRScan")]
+        public async Task<IActionResult> ShipOrderByQR(int orderId)
+        {
+            try
+            {   //找訂單
+                var order = await _context.TOrders.FindAsync(orderId);
+                if (order == null)
+                {
+                    return NotFound(new { message = "訂單不存在" });
+                }
+                if (order.FOrderStatusId != 1)
+                {
+                    return Ok(new { message = "訂單已出貨" });
+                }
+                //確定訂單狀態是1
+                if (order.FOrderStatusId == 1)
+                {
+                    order.FOrderStatusId = 2; //更新為待收貨
+                                              //新增狀態歷史紀錄
+
+                    //自動產生快遞單號
+                    order.FExtraInfo = "537快遞： #" + new Random().Next(1000000, 9999999).ToString();
+                    var statusHistory = new TOrderStatusHistory
+                    {
+                        FOrderId = orderId,
+                        FOrderStatusId = 2,
+                        FStatusName = _context.TOrderStatuses.FirstOrDefault(s => s.FOrderStatusId == 2).FStatusName,
+                        FTimestamp = DateTime.Now
+                    };
+                    _context.TOrderStatusHistories.Add(statusHistory);
+                }                
+                await _context.SaveChangesAsync();
                 return Ok(new { message = "訂單狀態已更新" });
             }
             catch (Exception ex)
@@ -528,6 +644,41 @@ namespace prjGroupB.Controllers
                 return StatusCode(500, new { message = "更新訂單時發生錯誤", error = ex.Message });
             }
         }
+
+        //中介程式GET
+        [HttpGet("webhook/shipOrder/{orderId}")]
+        [EnableCors("AllowQRScan")]
+        public async Task<IActionResult> WebhookShipOrder(int orderId, [FromServices] IHubContext<OrderHub> hubContext)
+        {
+            try
+            {
+                Console.WriteLine($"Webhook 被觸發，訂單 ID: {orderId}");
+                using (var handler = new HttpClientHandler() { AllowAutoRedirect = true })
+                using (var client = new HttpClient())
+                {
+                    string apiUrl = $"https://localhost:7112/api/TOrders/shipOrderByQR/{orderId}";
+
+                    // 透過 `PUT` 請求更新訂單狀態
+                    var response = await client.PutAsync(apiUrl, null);
+
+                    if (response.IsSuccessStatusCode)
+                    {
+                        // 使用 SignalR 通知前端 (sellerOrder.component)
+                        await hubContext.Clients.All.SendAsync("OrderUpdated", orderId);
+                        return Ok(new { message = $"訂單 {orderId} 已成功更新！" });
+                    }
+                    else
+                    {
+                        return StatusCode((int)response.StatusCode, new { message = "訂單更新失敗", error = await response.Content.ReadAsStringAsync() });
+                    }
+                }
+            }
+            catch (Exception ex)
+            {
+                return StatusCode(500, new { message = "內部錯誤", error = ex.Message });
+            }
+        }
+
 
         //買家更新訂單
         //PUT :api/TOrders/buyerUpdateAddress/{orderId}
@@ -555,7 +706,8 @@ namespace prjGroupB.Controllers
                 //更新地址
                 order.FShipAddress = buyerUpdate.FShipAddress;
                 await _context.SaveChangesAsync();
-                return Ok(new { message = "地址已變更完畢!" });
+                return Ok(new { message="地址已變更完畢!" });
+
             }
             catch (Exception ex)
             {
@@ -563,7 +715,7 @@ namespace prjGroupB.Controllers
             }
         }
 
-        //買家更新訂單
+        //買家完成訂單
         //PUT :api/TOrders/completeOrder/{orderId}
         [HttpPut("completeOrder/{orderId}")]
         public async Task<IActionResult> CompleteOrder(int orderId)
@@ -607,11 +759,11 @@ namespace prjGroupB.Controllers
                     }
 
                     //賣家Id
-                    var sellerId = await _context.TProducts
-                        .Where(p => p.FProductId == productId)
+                    var sellerId =await _context.TProducts
+                        .Where(p=>p.FProductId == productId)
                         .Select(p => p.FUserId)
                         .FirstOrDefaultAsync();
-                    if (sellerId == null)
+                    if (sellerId == null) 
                     {
                         await transaction.RollbackAsync();
                         return BadRequest(new { message = "Error789:訂單更新失敗，請洽客服" });
@@ -642,6 +794,38 @@ namespace prjGroupB.Controllers
                 return StatusCode(500, new { message = "更新訂單時發生錯誤，請洽客服。", error = ex.Message });
             }
         }
+
+
+        //產生QRcode
+        [HttpGet("generateQR/{orderId}")]
+        public async Task<IActionResult> generateQRCode (int orderId)
+        {
+            try
+            {
+                //QR內容是呼叫API的URL
+                string qrText = $"https://f369-1-160-19-244.ngrok-free.app/api/TOrders/webhook/shipOrder/{orderId}";            
+
+                // 生成 QR Code
+                QRCodeGenerator qrGenerator = new QRCodeGenerator();
+                QRCodeData qRCodeData = qrGenerator.CreateQrCode(qrText, QRCodeGenerator.ECCLevel.Q);
+                QRCode qrCode = new QRCode(qRCodeData);
+
+              
+                using (Bitmap qrBitmap = qrCode.GetGraphic(20))
+                {
+                    using (MemoryStream ms = new MemoryStream())
+                    {
+                        await Task.Run(() => qrBitmap.Save(ms, ImageFormat.Png));
+                        return File(ms.ToArray(), "image/png");
+                    }
+                }
+            }catch(Exception ex)
+            {
+                return StatusCode(500, new { message = "生成 QR Code 失敗", error = ex.Message });
+            }
+            
+        }
+
 
         private bool TOrderExists(int id)
         {

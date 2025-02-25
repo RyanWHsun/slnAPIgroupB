@@ -5,9 +5,9 @@ using System.Collections.Generic;
 
 namespace prjGroupB.Models;
 
-public partial class TPostView
+public partial class TPostLike
 {
-    public int FViewId { get; set; }
+    public int FLikeId { get; set; }
 
     public int? FUserId { get; set; }
 
