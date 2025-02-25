@@ -33,6 +33,12 @@ public partial class dbGroupBContext : DbContext
 
     public virtual DbSet<TAttractionUserFavorite> TAttractionUserFavorites { get; set; }
 
+    public virtual DbSet<TAttractionView> TAttractionViews { get; set; }
+
+    public virtual DbSet<TAttractionViewLog> TAttractionViewLogs { get; set; }
+
+    public virtual DbSet<TChat> TChats { get; set; }
+
     public virtual DbSet<TChatRoom> TChatRooms { get; set; }
 
     public virtual DbSet<TEvent> TEvents { get; set; }
@@ -79,9 +85,9 @@ public partial class dbGroupBContext : DbContext
 
     public virtual DbSet<TPostImage> TPostImages { get; set; }
 
-    public virtual DbSet<TPostTag> TPostTags { get; set; }
+    public virtual DbSet<TPostLike> TPostLikes { get; set; }
 
-    public virtual DbSet<TPostView> TPostViews { get; set; }
+    public virtual DbSet<TPostTag> TPostTags { get; set; }
 
     public virtual DbSet<TProduct> TProducts { get; set; }
 
@@ -347,6 +353,66 @@ public partial class dbGroupBContext : DbContext
                 .HasConstraintName("FK__tAttracti__fUser__0B91BA14");
         });
 
+        modelBuilder.Entity<TAttractionView>(entity =>
+        {
+            entity.HasKey(e => e.FId);
+
+            entity.ToTable("tAttractionViews");
+
+            entity.Property(e => e.FId).HasColumnName("fId");
+            entity.Property(e => e.FAttractionId).HasColumnName("fAttractionId");
+            entity.Property(e => e.FViewCount).HasColumnName("fViewCount");
+
+            entity.HasOne(d => d.FAttraction).WithMany(p => p.TAttractionViews)
+                .HasForeignKey(d => d.FAttractionId)
+                .OnDelete(DeleteBehavior.Cascade)
+                .HasConstraintName("FK_tAttractionViews_tAttractions");
+        });
+
+        modelBuilder.Entity<TAttractionViewLog>(entity =>
+        {
+            entity.HasKey(e => e.FLogId);
+
+            entity.ToTable("tAttractionViewLogs");
+
+            entity.Property(e => e.FLogId).HasColumnName("fLogId");
+            entity.Property(e => e.FAttractionId).HasColumnName("fAttractionId");
+            entity.Property(e => e.FUserIp)
+                .HasMaxLength(50)
+                .HasColumnName("fUserIp");
+            entity.Property(e => e.FViewTime)
+                .HasColumnType("datetime")
+                .HasColumnName("fViewTime");
+
+            entity.HasOne(d => d.FAttraction).WithMany(p => p.TAttractionViewLogs)
+                .HasForeignKey(d => d.FAttractionId)
+                .OnDelete(DeleteBehavior.Cascade)
+                .HasConstraintName("FK_tAttractionViewLogs_tAttractions");
+        });
+
+        modelBuilder.Entity<TChat>(entity =>
+        {
+            entity.HasKey(e => e.FChatId).HasName("PK_tChats_1");
+
+            entity.ToTable("tChats");
+
+            entity.Property(e => e.FChatId).HasColumnName("fChatId");
+            entity.Property(e => e.FMessageText).HasColumnName("fMessageText");
+            entity.Property(e => e.FReceiverId).HasColumnName("fReceiverId");
+            entity.Property(e => e.FSenderId).HasColumnName("fSenderId");
+            entity.Property(e => e.FSentAt)
+                .HasColumnType("datetime")
+                .HasColumnName("fSentAt");
+
+            entity.HasOne(d => d.FReceiver).WithMany(p => p.TChatFReceivers)
+                .HasForeignKey(d => d.FReceiverId)
+                .HasConstraintName("FK_tChats_tUser1");
+
+            entity.HasOne(d => d.FSender).WithMany(p => p.TChatFSenders)
+                .HasForeignKey(d => d.FSenderId)
+                .HasConstraintName("FK_tChats_tUser");
+        });
+
         modelBuilder.Entity<TChatRoom>(entity =>
         {
             entity.HasKey(e => e.FChatId);
@@ -394,6 +460,14 @@ public partial class dbGroupBContext : DbContext
                 .HasMaxLength(250)
                 .HasColumnName("fEventURL");
             entity.Property(e => e.FUserId).HasColumnName("fUserId");
+            entity.Property(e => e.FcurrentParticipants)
+                .HasDefaultValue(0)
+                .HasColumnName("FCurrentParticipants");
+            entity.Property(e => e.FeventDuration).HasColumnName("FEventDuration");
+            entity.Property(e => e.FeventFee)
+                .HasColumnType("decimal(10, 2)")
+                .HasColumnName("FEventFee");
+            entity.Property(e => e.FmaxParticipants).HasColumnName("FMaxParticipants");
         });
 
         modelBuilder.Entity<TEventCategory>(entity =>
@@ -672,6 +746,8 @@ public partial class dbGroupBContext : DbContext
             entity.ToTable("tOrders");
 
             entity.Property(e => e.FOrderId).HasColumnName("fOrderId");
+            entity.Property(e => e.FBuyerId).HasColumnName("fBuyerId");
+            entity.Property(e => e.FExtraInfo).HasColumnName("fExtraInfo");
             entity.Property(e => e.FOrderDate)
                 .HasColumnType("datetime")
                 .HasColumnName("fOrderDate");
@@ -682,17 +758,14 @@ public partial class dbGroupBContext : DbContext
             entity.Property(e => e.FShipAddress)
                 .HasMaxLength(100)
                 .HasColumnName("fShipAddress");
-            entity.Property(e => e.FStatusHistoryId).HasColumnName("fStatusHistoryId");
-            entity.Property(e => e.FUserId).HasColumnName("fUserId");
 
-            entity.HasOne(d => d.FStatusHistory).WithMany(p => p.TOrders)
-                .HasForeignKey(d => d.FStatusHistoryId)
-                .OnDelete(DeleteBehavior.Cascade)
-                .HasConstraintName("FK_tOrders_tOrderStatusHistory");
-
-            entity.HasOne(d => d.FUser).WithMany(p => p.TOrders)
-                .HasForeignKey(d => d.FUserId)
+            entity.HasOne(d => d.FBuyer).WithMany(p => p.TOrders)
+                .HasForeignKey(d => d.FBuyerId)
                 .HasConstraintName("FK_tOrders_tUser");
+
+            entity.HasOne(d => d.FOrderStatus).WithMany(p => p.TOrders)
+                .HasForeignKey(d => d.FOrderStatusId)
+                .HasConstraintName("FK_tOrders_tOrderStatus");
         });
 
         modelBuilder.Entity<TOrderStatus>(entity =>
@@ -722,6 +795,16 @@ public partial class dbGroupBContext : DbContext
             entity.Property(e => e.FTimestamp)
                 .HasColumnType("datetime")
                 .HasColumnName("fTimestamp");
+
+            entity.HasOne(d => d.FOrder).WithMany(p => p.TOrderStatusHistories)
+                .HasForeignKey(d => d.FOrderId)
+                .OnDelete(DeleteBehavior.ClientSetNull)
+                .HasConstraintName("FK_tOrderStatusHistory_tOrders");
+
+            entity.HasOne(d => d.FOrderStatus).WithMany(p => p.TOrderStatusHistories)
+                .HasForeignKey(d => d.FOrderStatusId)
+                .OnDelete(DeleteBehavior.ClientSetNull)
+                .HasConstraintName("FK_tOrderStatusHistory_tOrderStatus");
         });
 
         modelBuilder.Entity<TOrdersDetail>(entity =>
@@ -741,10 +824,6 @@ public partial class dbGroupBContext : DbContext
             entity.Property(e => e.FUnitPrice)
                 .HasColumnType("decimal(18, 2)")
                 .HasColumnName("fUnitPrice");
-
-            entity.HasOne(d => d.FItem).WithMany(p => p.TOrdersDetails)
-                .HasForeignKey(d => d.FItemId)
-                .HasConstraintName("FK_tOrdersDetails_tProduct");
 
             entity.HasOne(d => d.FOrder).WithMany(p => p.TOrdersDetails)
                 .HasForeignKey(d => d.FOrderId)
@@ -871,6 +950,26 @@ public partial class dbGroupBContext : DbContext
                 .HasConstraintName("FK_tPosts_TO_tPostImages");
         });
 
+        modelBuilder.Entity<TPostLike>(entity =>
+        {
+            entity.HasKey(e => e.FLikeId);
+
+            entity.ToTable("tPostLikes");
+
+            entity.Property(e => e.FLikeId).HasColumnName("fLikeId");
+            entity.Property(e => e.FPostId).HasColumnName("fPostId");
+            entity.Property(e => e.FUserId).HasColumnName("fUserId");
+
+            entity.HasOne(d => d.FPost).WithMany(p => p.TPostLikes)
+                .HasForeignKey(d => d.FPostId)
+                .OnDelete(DeleteBehavior.Cascade)
+                .HasConstraintName("FK_tPostLikes_tPosts");
+
+            entity.HasOne(d => d.FUser).WithMany(p => p.TPostLikes)
+                .HasForeignKey(d => d.FUserId)
+                .HasConstraintName("FK_tPostLikes_tUser");
+        });
+
         modelBuilder.Entity<TPostTag>(entity =>
         {
             entity.HasKey(e => e.FTagId);
@@ -881,26 +980,6 @@ public partial class dbGroupBContext : DbContext
             entity.Property(e => e.FTagName)
                 .HasMaxLength(50)
                 .HasColumnName("fTagName");
-        });
-
-        modelBuilder.Entity<TPostView>(entity =>
-        {
-            entity.HasKey(e => e.FViewId);
-
-            entity.ToTable("tPostViews");
-
-            entity.Property(e => e.FViewId).HasColumnName("fViewId");
-            entity.Property(e => e.FPostId).HasColumnName("fPostId");
-            entity.Property(e => e.FUserId).HasColumnName("fUserId");
-
-            entity.HasOne(d => d.FPost).WithMany(p => p.TPostViews)
-                .HasForeignKey(d => d.FPostId)
-                .OnDelete(DeleteBehavior.Cascade)
-                .HasConstraintName("FK_tPosts_TO_tPostViews");
-
-            entity.HasOne(d => d.FUser).WithMany(p => p.TPostViews)
-                .HasForeignKey(d => d.FUserId)
-                .HasConstraintName("FK_tUser_TO_tPostViews");
         });
 
         modelBuilder.Entity<TProduct>(entity =>

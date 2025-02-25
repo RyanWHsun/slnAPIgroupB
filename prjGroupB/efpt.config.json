@@ -55,7 +55,19 @@
          "ObjectType": 0
       },
       {
+         "Name": "[dbo].[tAttractionViewLogs]",
+         "ObjectType": 0
+      },
+      {
+         "Name": "[dbo].[tAttractionViews]",
+         "ObjectType": 0
+      },
+      {
          "Name": "[dbo].[tChatRoom]",
+         "ObjectType": 0
+      },
+      {
+         "Name": "[dbo].[tChats]",
          "ObjectType": 0
       },
       {
@@ -143,15 +155,15 @@
          "ObjectType": 0
       },
       {
+         "Name": "[dbo].[tPostLikes]",
+         "ObjectType": 0
+      },
+      {
          "Name": "[dbo].[tPosts]",
          "ObjectType": 0
       },
       {
          "Name": "[dbo].[tPostTags]",
-         "ObjectType": 0
-      },
-      {
-         "Name": "[dbo].[tPostViews]",
          "ObjectType": 0
       },
       {

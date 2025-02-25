@@ -21,8 +21,6 @@ public partial class TOrdersDetail
 
     public string FExtraInfo { get; set; }
 
-    public virtual TProduct FItem { get; set; }
-
     public virtual TOrder FOrder { get; set; }
 
     public virtual ICollection<TProductReview> TProductReviews { get; set; } = new List<TProductReview>();
