@@ -19,7 +19,8 @@ namespace prjGroupB.Controllers {
         // Call current weather data
         [HttpGet("CurrentWeather")]
         public async Task<ActionResult<string>> GetCurrentWeather(float lat, float lon) {
-            string apiKey = _config["OpenWeather:ApiKey"];
+            var apiKey = EnvironmentConfig.GetValue("OpenWeather", "ApiKey");
+            //string apiKey = _config["OpenWeather:ApiKey"];
 
             if (apiKey == null || apiKey == "") {
                 return BadRequest("API Key 未設定");
@@ -42,7 +43,8 @@ namespace prjGroupB.Controllers {
         // https://localhost:7112/api/OpenWeatherAPI/WeatherIcon?lat=25.070843504702268&lon=121.49929878012719
         [HttpGet("WeatherIcon")]
         public async Task<ActionResult<string>> GetWeatherIcon(float lat, float lon) {
-            string apiKey = _config["OpenWeather:ApiKey"];
+            var apiKey = EnvironmentConfig.GetValue("OpenWeather", "ApiKey");
+            //string apiKey = _config["OpenWeather:ApiKey"];
 
             if (apiKey == null || apiKey == "") {
                 return BadRequest("API Key 未設定");

@@ -20,7 +20,8 @@ namespace prjGroupB.Controllers {
 
         [HttpGet("geocode")]
         public async Task<IActionResult> Geocode([FromQuery] string address) {
-            var apiKey = _config["GoogleMaps:ApiKey"];
+            var apiKey = EnvironmentConfig.GetValue("GoogleMaps", "ApiKey");
+            // var apiKey = _config["GoogleMaps:ApiKey"]; // 從 User-Scrtets 中讀取 API Key
             if (string.IsNullOrEmpty(apiKey)) {
                 return BadRequest("API Key 未設定");
             }
@@ -34,7 +35,8 @@ namespace prjGroupB.Controllers {
         // 取得地圖資料
         [HttpGet("getMapData")]
         public async Task<IActionResult> GetMapData() {
-            string apiKey = _config["GoogleMaps:ApiKey"];
+            var apiKey = EnvironmentConfig.GetValue("GoogleMaps", "ApiKey");
+            //string apiKey = _config["GoogleMaps:ApiKey"];
             if (apiKey == null || apiKey == "") {
                 return BadRequest("API Key 未設定");
             }
@@ -50,7 +52,8 @@ namespace prjGroupB.Controllers {
         // 根據地點名稱取得照片
         [HttpGet("getPlacePhoto")]
         public async Task<IActionResult> GetPlacePhotoAsync(string query) {
-            string apiKey = _config["GoogleMaps:ApiKey"];
+            var apiKey = EnvironmentConfig.GetValue("GoogleMaps", "ApiKey");
+            //string apiKey = _config["GoogleMaps:ApiKey"];
             if (string.IsNullOrEmpty(apiKey)) {
                 return BadRequest(new { error = "API Key 未設定" });
             }
@@ -89,7 +92,8 @@ namespace prjGroupB.Controllers {
 
         [HttpPost("locations/geocode")]
         public async Task<IActionResult> GetLocations([FromBody] List<string> places) {
-            string apiKey = _config["GoogleMaps:ApiKey"];
+            var apiKey = EnvironmentConfig.GetValue("GoogleMaps", "ApiKey");
+            //string apiKey = _config["GoogleMaps:ApiKey"];
             if (string.IsNullOrEmpty(apiKey)) {
                 return BadRequest(new { error = "API Key 未設定" });
             }
