@@ -803,7 +803,7 @@ namespace prjGroupB.Controllers
             try
             {
                 //QR內容是呼叫API的URL
-                string qrText = $"https://f369-1-160-19-244.ngrok-free.app/api/TOrders/webhook/shipOrder/{orderId}";            
+                string qrText = $"https://special-publicly-humpback.ngrok-free.app/api/TOrders/webhook/shipOrder/{orderId}";            
 
                 // 生成 QR Code
                 QRCodeGenerator qrGenerator = new QRCodeGenerator();
