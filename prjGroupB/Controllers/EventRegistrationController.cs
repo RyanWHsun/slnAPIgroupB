@@ -64,13 +64,13 @@ namespace prjGroupB.Controllers
             int registeredCount = await _context.TEventRegistrationForms
                 .CountAsync(r => r.FEventId == registration.FEventId);
 
-            if (eventItem.FmaxParticipants != null && registeredCount >= eventItem.FmaxParticipants)
+            if (eventItem.FMaxParticipants != null && registeredCount >= eventItem.FMaxParticipants)
             {
                 return BadRequest(new { message = "報名人數已滿，無法報名" });
             }
 
             // 報名成功後，更新已報名人數
-            eventItem.FcurrentParticipants = registeredCount + 1;
+            eventItem.FCurrentParticipants = registeredCount + 1;
             await _context.SaveChangesAsync();
 
             // ✅ 檢查是否已報名
