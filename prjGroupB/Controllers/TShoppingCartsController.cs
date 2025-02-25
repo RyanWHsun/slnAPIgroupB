@@ -32,33 +32,41 @@ namespace prjGroupB.Controllers
         [HttpGet]       
         public async Task<IActionResult> GetShoppingCart()
         {
-            var userId = int.Parse(User.FindFirstValue(ClaimTypes.NameIdentifier));
-            //var userId = 5;
-            var cartItems = await _context.TShoppingCartItems
-                .Where(i=>_context.TShoppingCarts.Any(c=>c.FCartId==i.FCartId&&c.FUserId==userId))
-                .ToListAsync(); // 先從資料庫獲取清單
-
-            var result = cartItems.Select(i=> new TShoppingCartDTO
-                {
-                    FUserId=userId,
-                    FCartItemId=i.FCartItemId,
-                    FItemType=i.FItemType,
-                    FItemId=i.FItemId,
-                    FPrice=i.FPrice,
-                    FQuantity=i.FQuantity,
-                    FItemName=GetItemName(i.FItemType,i.FItemId),
-                    FSingleImage=GetItemImage(i.FItemType, i.FItemId),
-                    FSellerId = i.FItemType == "product" ? _context.TProducts.FirstOrDefault(p => p.FProductId == i.FItemId)?.FUserId : 0,
-                    FSellerName = i.FItemType == "product"? GetSellerName(i.FItemType,i.FItemId):null,
-                    FProductStock=i.FItemType =="product"? _context.TProducts.FirstOrDefault(p => p.FProductId == i.FItemId)?.FStock : null,
-                    FSpecification = GetItemRemark(i.FItemType,i.FItemId)
-
-            }).ToList();
-            if (!result.Any())
+            try
             {
-                return NotFound(new { messange = "購物車無項目。2" });
+                var userId = int.Parse(User.FindFirstValue(ClaimTypes.NameIdentifier));
+                //var userId = 5;
+                var cartItems = await _context.TShoppingCartItems
+                    .Where(i => _context.TShoppingCarts.Any(c => c.FCartId == i.FCartId && c.FUserId == userId))
+                    .ToListAsync(); // 先從資料庫獲取清單
+
+                var result = cartItems.Select(i => new TShoppingCartDTO
+                {
+                    FUserId = userId,
+                    FCartItemId = i.FCartItemId,
+                    FItemType = i.FItemType,
+                    FItemId = i.FItemId,
+                    FPrice = i.FPrice,
+                    FQuantity = i.FQuantity,
+                    FItemName = GetItemName(i.FItemType, i.FItemId),
+                    FSingleImage = GetItemImage(i.FItemType, i.FItemId),
+                    FSellerId = i.FItemType == "product" ? _context.TProducts.FirstOrDefault(p => p.FProductId == i.FItemId)?.FUserId : 0,
+                    FSellerName = i.FItemType == "product" ? GetSellerName(i.FItemType, i.FItemId) : null,
+                    FProductStock = i.FItemType == "product" ? _context.TProducts.FirstOrDefault(p => p.FProductId == i.FItemId)?.FStock : null,
+                    FSpecification = GetItemRemark(i.FItemType, i.FItemId)
+
+                }).ToList();
+                if (!result.Any())
+                {
+                    return NotFound(new { messange = "購物車無項目。2" });
+                }
+                return Ok(result);
             }
-            return Ok(result);
+            catch (Exception ex) 
+            {
+                Console.WriteLine($"取得購物車時發生錯誤: {ex.Message}");
+                return StatusCode(500, new { message = "伺服器錯誤，請稍後再試!" });
+            }
         }
 
         private static string GetItemRemark(string fItemType, int? fItemId)
@@ -136,12 +144,12 @@ namespace prjGroupB.Controllers
         }
         private static string? GetItemImage(string fItemType, int? fItemId)
         {
-            if (fItemId == null)
-            {
-                return null;
-            }
             try
             {
+                if (fItemId == null)
+                {
+                    return null;
+                }
                 using (var context = new dbGroupBContext())
                 {
                     byte[] imageBytes = null;
@@ -178,23 +186,31 @@ namespace prjGroupB.Controllers
         }
         private static string ConvertToThumbnailBase64(byte[] fUserImage, int width, int height)
         {
-            using (var ms = new MemoryStream(fUserImage))
+            try
             {
-                // 使用 System.Drawing 讀取圖片
-                using (var image = Image.FromStream(ms))
+                using (var ms = new MemoryStream(fUserImage))
                 {
-                    // 建立縮圖
-                    using (var thumbnail = image.GetThumbnailImage(width, height, () => false, IntPtr.Zero))
+                    // 使用 System.Drawing 讀取圖片
+                    using (var image = Image.FromStream(ms))
                     {
-                        using (var thumbnailStream = new MemoryStream())
+                        // 建立縮圖
+                        using (var thumbnail = image.GetThumbnailImage(width, height, () => false, IntPtr.Zero))
                         {
-                            // 儲存縮圖到記憶體流
-                            thumbnail.Save(thumbnailStream, ImageFormat.Png);
-                            // 將縮圖轉換為 Base64
-                            return Convert.ToBase64String(thumbnailStream.ToArray());
+                            using (var thumbnailStream = new MemoryStream())
+                            {
+                                // 儲存縮圖到記憶體流
+                                thumbnail.Save(thumbnailStream, ImageFormat.Png);
+                                // 將縮圖轉換為 Base64
+                                return Convert.ToBase64String(thumbnailStream.ToArray());
+                            }
                         }
                     }
                 }
+            }
+            catch (Exception ex)
+            {
+                Console.WriteLine($"CART的圖片轉換error: {ex.Message}");
+                return null;
             }
         }
 
@@ -204,69 +220,82 @@ namespace prjGroupB.Controllers
         [HttpPost("addProductToCart")]
         public async Task<IActionResult> addProductToCart([FromBody] addProductToCartDTO cartDTO)
         {
-            if (cartDTO == null || cartDTO.FQuantity<=0) 
+            try
             {
-                return BadRequest("無效的項目");
-            }
-            //抓用戶ID
-            var userId = int.Parse(User.FindFirstValue(ClaimTypes.NameIdentifier));
-            
-            //檢查是否已存在購物車
-            var existingCart = await _context.TShoppingCarts
-                .Include(c=>c.TShoppingCartItems)
-                .FirstOrDefaultAsync(c=>c.FUserId == userId);
-            
-            //如果購物車不存在就建新的
-            if (existingCart == null) 
-            {
-                existingCart = new TShoppingCart
+                if (cartDTO == null || cartDTO.FQuantity <= 0)
                 {
-                    FUserId = userId,
-                    FCreatedDate = DateTime.Now,
-                    TShoppingCartItems = new List<TShoppingCartItem>()
-                };
-                _context.TShoppingCarts.Add(existingCart);
-                await _context.SaveChangesAsync(); //先儲存取得id
-            }
-
-            //檢查購物車是否已有該項目
-            var existingItem = await _context.TShoppingCartItems
-                .FirstOrDefaultAsync(i=>i.FCartId==existingCart.FCartId && 
-                                        i.FItemType== cartDTO.FItemType && 
-                                        i.FItemId==cartDTO.FItemId );
-
-            //取得該商品的庫存
-            int stock = await _context.TProducts
-                .Where(p => p.FProductId == cartDTO.FItemId)
-                .Select(p => p.FStock??0)
-                .FirstOrDefaultAsync();
-
-            if (existingItem != null)
-            {
-                if(existingItem.FQuantity + cartDTO.FQuantity > stock)
-                {
-                    return BadRequest(new { message = "購物車數量已達庫存上限，無法再加入。" });
+                    return BadRequest("無效的項目");
                 }
-                existingItem.FQuantity += cartDTO.FQuantity;
-            }
-            else
-            {
-                if (cartDTO.FQuantity > stock) 
+                //抓用戶ID
+                var userId = int.Parse(User.FindFirstValue(ClaimTypes.NameIdentifier));
+
+                //檢查是否已存在購物車
+                var existingCart = await _context.TShoppingCarts
+                    .Include(c => c.TShoppingCartItems)
+                    .FirstOrDefaultAsync(c => c.FUserId == userId);
+
+                //如果購物車不存在就建新的
+                if (existingCart == null)
                 {
-                    return BadRequest(new { message = "庫存不足，無法加入購物車。" });
+                    existingCart = new TShoppingCart
+                    {
+                        FUserId = userId,
+                        FCreatedDate = DateTime.Now,
+                        TShoppingCartItems = new List<TShoppingCartItem>()
+                    };
+                    _context.TShoppingCarts.Add(existingCart);
+                    await _context.SaveChangesAsync(); //先儲存取得id
                 }
-                var newItem = new TShoppingCartItem
+
+                //檢查購物車是否已有該項目
+                var existingItem = await _context.TShoppingCartItems
+                    .FirstOrDefaultAsync(i => i.FCartId == existingCart.FCartId &&
+                                            i.FItemType == cartDTO.FItemType &&
+                                            i.FItemId == cartDTO.FItemId);
+
+                //取得該商品的庫存
+                int stock = await _context.TProducts
+                    .Where(p => p.FProductId == cartDTO.FItemId)
+                    .Select(p => p.FStock ?? 0)
+                    .FirstOrDefaultAsync();
+
+                if (existingItem != null)
                 {
-                    FCartId = existingCart.FCartId,
-                    FItemType = cartDTO.FItemType,
-                    FItemId = cartDTO.FItemId,
-                    FQuantity = cartDTO.FQuantity,
-                    FPrice = cartDTO.FPrice,
-                };
-                _context.TShoppingCartItems.Add(newItem);
+                    if (existingItem.FQuantity + cartDTO.FQuantity > stock)
+                    {
+                        return BadRequest(new { message = "購物車數量已達庫存上限，無法再加入。" });
+                    }
+                    existingItem.FQuantity += cartDTO.FQuantity;
+                }
+                else
+                {
+                    if (cartDTO.FQuantity > stock)
+                    {
+                        return BadRequest(new { message = "庫存不足，無法加入購物車。" });
+                    }
+                    var newItem = new TShoppingCartItem
+                    {
+                        FCartId = existingCart.FCartId,
+                        FItemType = cartDTO.FItemType,
+                        FItemId = cartDTO.FItemId,
+                        FQuantity = cartDTO.FQuantity,
+                        FPrice = cartDTO.FPrice,
+                    };
+                    _context.TShoppingCartItems.Add(newItem);
+                }
+                await _context.SaveChangesAsync();
+                return Ok(new { message = "商品已成功加入購物車" });
             }
-            await _context.SaveChangesAsync();
-            return Ok(new { message = "商品已成功加入購物車" });      
+            catch (DbUpdateException dbEx)
+            {
+                Console.WriteLine($"新增商品至購物車失敗 (資料庫異常): {dbEx.Message}");
+                return StatusCode(500, new { message = "新增商品至購物車失敗，請稍後再試!", error = "資料庫錯誤" });
+            }
+            catch (Exception ex)
+            {
+                Console.WriteLine($"新增商品至購物車失敗: {ex.Message}");
+                return StatusCode(500, new { message = "新增商品至購物車失敗，發生未知錯誤，請稍後再試!", error = ex.Message });
+            }
         }
 
         // GET: api/TShoppingCarts/ItemCount
@@ -296,17 +325,30 @@ namespace prjGroupB.Controllers
         [HttpDelete("remove/{cartItemId}")]
         public async Task<IActionResult> RemoveCartItem(int cartItemId)
         {
-            var userId = int.Parse(User.FindFirstValue(ClaimTypes.NameIdentifier));
-
-            var cartItem = await _context.TShoppingCartItems
-                .FirstOrDefaultAsync(i => i.FCartItemId == cartItemId);
-            if (cartItem == null)
+            try
             {
-                return NotFound(new { message = "購物車項目不存在" });
+                var userId = int.Parse(User.FindFirstValue(ClaimTypes.NameIdentifier));
+
+                var cartItem = await _context.TShoppingCartItems
+                    .FirstOrDefaultAsync(i => i.FCartItemId == cartItemId);
+                if (cartItem == null)
+                {
+                    return NotFound(new { message = "購物車項目不存在" });
+                }
+                _context.TShoppingCartItems.Remove(cartItem);
+                await _context.SaveChangesAsync();
+                return Ok(new { message = "購物車項目已移除" });
             }
-            _context.TShoppingCartItems.Remove(cartItem);
-            await _context.SaveChangesAsync();
-            return Ok(new { message = "購物車項目已移除" });
+            catch (DbUpdateException dbEx)
+            {
+                Console.WriteLine($"刪除購物車項目失敗 (資料庫異常): {dbEx.Message}");
+                return StatusCode(500, new { message = "刪除購物車項目失敗，請稍後再試!", error = "資料庫錯誤" });
+            }
+            catch (Exception ex)
+            {
+                Console.WriteLine($"刪除購物車項目失敗: {ex.Message}");
+                return StatusCode(500, new { message = "刪除購物車項目失敗，發生未知錯誤，請稍後再試!", error = ex.Message });
+            }
         }
 
         // 批次刪除
@@ -314,24 +356,37 @@ namespace prjGroupB.Controllers
         [HttpPost("removeBatch")]
         public async Task<IActionResult> RemoveCartItems([FromBody] List<int> cartItemIds)
         {
-            var userId = int.Parse(User.FindFirstValue(ClaimTypes.NameIdentifier));
-
-            if (cartItemIds == null || !cartItemIds.Any())
+            try
             {
-                return BadRequest(new { message = "請選擇至少一個項目來刪除" });
+                var userId = int.Parse(User.FindFirstValue(ClaimTypes.NameIdentifier));
+
+                if (cartItemIds == null || !cartItemIds.Any())
+                {
+                    return BadRequest(new { message = "請選擇至少一個項目來刪除" });
+                }
+
+                var cartItems = await _context.TShoppingCartItems
+                    .Where(i => cartItemIds.Contains(i.FCartItemId))
+                    .ToListAsync();
+
+                if (!cartItemIds.Any())
+                {
+                    return NotFound(new { message = "購物車項目不存在" });
+                }
+                _context.TShoppingCartItems.RemoveRange(cartItems);
+                await _context.SaveChangesAsync();
+                return Ok(new { message = "購物車項目已移除" });
             }
-
-            var cartItems = await _context.TShoppingCartItems
-                .Where(i=>cartItemIds.Contains(i.FCartItemId))
-                .ToListAsync();
-
-            if (!cartItemIds.Any())
+            catch (DbUpdateException dbEx)
             {
-                return NotFound(new { message = "購物車項目不存在" });
+                Console.WriteLine($"批次刪除購物車項目失敗 (資料庫異常): {dbEx.Message}");
+                return StatusCode(500, new { message = "批次刪除購物車項目失敗，請稍後再試!", error = "資料庫錯誤" });
             }
-            _context.TShoppingCartItems.RemoveRange(cartItems);
-            await _context.SaveChangesAsync();
-            return Ok(new { message = "購物車項目已移除" });
+            catch (Exception ex)
+            {
+                Console.WriteLine($"批次刪除購物車項目失敗: {ex.Message}");
+                return StatusCode(500, new { message = "批次刪除購物車項目失敗，發生未知錯誤，請稍後再試!", error = ex.Message });
+            }
         }
 
 

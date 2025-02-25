@@ -333,29 +333,38 @@ namespace prjGroupB.Controllers
 
         private decimal GetItemPrice(string itemType, int itemId)
         {
-            switch (itemType)
+            try
             {
-                case "product":
-                    return _context.TProducts
-                               .Where(p => p.FProductId == itemId)
-                               .Select(p => (decimal?)p.FProductPrice) // 使用 decimal? 避免 null
-                               .FirstOrDefault() ?? 0; // 如果 null，則預設回傳 0
+                switch (itemType)
+                {
+                    case "product":
+                        return _context.TProducts
+                                   .Where(p => p.FProductId == itemId)
+                                   .Select(p => (decimal?)p.FProductPrice) // 使用 decimal? 避免 null
+                                   .FirstOrDefault() ?? 0; // 如果 null，則預設回傳 0
 
-                case "attractionTicket":
-                    return _context.TAttractionTickets
-                               .Where(t => t.FAttractionTicketId == itemId)
-                               .Select(t => (decimal?)t.FPrice)
-                               .FirstOrDefault() ?? 0;
+                    case "attractionTicket":
+                        return _context.TAttractionTickets
+                                   .Where(t => t.FAttractionTicketId == itemId)
+                                   .Select(t => (decimal?)t.FPrice)
+                                   .FirstOrDefault() ?? 0;
 
-                case "eventFee":
-                    return _context.TEvents
-                               .Where(e => e.FEventId == itemId)
-                               .Select(e => (decimal?)e.FEventFee)
-                               .FirstOrDefault() ?? 0;
+                    case "eventFee":
+                        return _context.TEvents
+                                   .Where(e => e.FEventId == itemId)
+                                   .Select(e => (decimal?)e.FEventFee)
+                                   .FirstOrDefault() ?? 0;
 
-                default:
-                    return 0; // 預設回傳 0 避免錯誤
+                    default:
+                        return 0; // 預設回傳 0 避免錯誤
+                }
             }
+            catch(Exception ex)
+            {
+                Console.WriteLine("產生價格有誤", ex.Message);
+                return 0;
+            }
+
         }
 
         //取得買家所有訂單
@@ -467,23 +476,31 @@ namespace prjGroupB.Controllers
         }
         private static string ConvertToThumbnailBase64(byte[] fUserImage, int width, int height)
         {
-            using (var ms = new MemoryStream(fUserImage))
+            try
             {
-                // 使用 System.Drawing 讀取圖片
-                using (var image = Image.FromStream(ms))
+                using (var ms = new MemoryStream(fUserImage))
                 {
-                    // 建立縮圖
-                    using (var thumbnail = image.GetThumbnailImage(width, height, () => false, IntPtr.Zero))
+                    // 使用 System.Drawing 讀取圖片
+                    using (var image = Image.FromStream(ms))
                     {
-                        using (var thumbnailStream = new MemoryStream())
+                        // 建立縮圖
+                        using (var thumbnail = image.GetThumbnailImage(width, height, () => false, IntPtr.Zero))
                         {
-                            // 儲存縮圖到記憶體流
-                            thumbnail.Save(thumbnailStream, ImageFormat.Png);
-                            // 將縮圖轉換為 Base64
-                            return Convert.ToBase64String(thumbnailStream.ToArray());
+                            using (var thumbnailStream = new MemoryStream())
+                            {
+                                // 儲存縮圖到記憶體流
+                                thumbnail.Save(thumbnailStream, ImageFormat.Png);
+                                // 將縮圖轉換為 Base64
+                                return Convert.ToBase64String(thumbnailStream.ToArray());
+                            }
                         }
                     }
                 }
+            }
+            catch(Exception ex)
+            {
+                Console.WriteLine($"縮圖轉換失敗: {ex.Message}");
+                return null;
             }
         }
 
@@ -788,7 +805,7 @@ namespace prjGroupB.Controllers
             try
             {
                 //QR內容是呼叫API的URL
-                string qrText = $"https://2eb4-2001-b400-e243-dc5c-91fb-122b-8573-8df3.ngrok-free.app/api/TOrders/webhook/shipOrder/{orderId}";            
+                string qrText = $"https://f369-1-160-19-244.ngrok-free.app/api/TOrders/webhook/shipOrder/{orderId}";            
 
                 // 生成 QR Code
                 QRCodeGenerator qrGenerator = new QRCodeGenerator();
