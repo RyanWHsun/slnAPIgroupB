@@ -7,8 +7,10 @@ using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Http.HttpResults;
 using Microsoft.AspNetCore.Mvc;
+using Microsoft.AspNetCore.SignalR;
 using Microsoft.EntityFrameworkCore;
 using prjGroupB.DTO;
+using prjGroupB.Hubs;
 using prjGroupB.Models;
 
 namespace prjGroupB.Controllers
@@ -18,10 +20,11 @@ namespace prjGroupB.Controllers
     public class TPostCommentsController : ControllerBase
     {
         private readonly dbGroupBContext _context;
-
-        public TPostCommentsController(dbGroupBContext context)
+        private readonly IHubContext<ChatHub> _hubContext;
+        public TPostCommentsController(dbGroupBContext context, IHubContext<ChatHub> hubContext)
         {
             _context = context;
+            _hubContext = hubContext;
         }
 
         // GET: api/TPostComments/5
@@ -29,10 +32,6 @@ namespace prjGroupB.Controllers
         public async Task<IEnumerable<TPostCommentsDTO>> GetTPostComment(int id)
         {
             TPost post = await _context.TPosts.FindAsync(id);
-            if (post.FIsPublic != true)
-            {
-                return null;
-            }
             return _context.TPostComments
                 .Where(c => c.FPostId == id)
                 .OrderByDescending(t => t.FCreatedAt)
@@ -40,6 +39,7 @@ namespace prjGroupB.Controllers
                 .Select(e => new TPostCommentsDTO{
                     FCommentId = e.FCommentId,
                     FPostId = e.FPostId,
+                    FUserId = e.FUser.FUserId,
                     FUserName = e.FUser.FUserName,
                     FUserNickName = e.FUser.FUserNickName,
                     FUserImage = Convert.ToBase64String(e.FUser.FUserImage),
@@ -48,6 +48,12 @@ namespace prjGroupB.Controllers
                     FUpdatedAt = e.FUpdatedAt,
                     FParentCommentId = e.FParentCommentId
                 });
+        }
+        // GET: api/TPostComments/GetTPostCommentCount/5
+        [HttpGet("GetTPostCommentCount/{id}")]
+        public int GetTPostCommentCount(int id)
+        {
+            return _context.TPostComments.Where(e => e.FPostId == id).Count();
         }
 
         // PUT: api/TPostComments/5
@@ -96,23 +102,28 @@ namespace prjGroupB.Controllers
             _context.TPostComments.Add(comment);
             await _context.SaveChangesAsync();
             PostCommentsDTO.FCommentId = comment.FCommentId;
+            PostCommentsDTO.FUserId = userId;
+            var queryUser = _context.TUsers.FirstOrDefault(e => e.FUserId == userId);
+            PostCommentsDTO.FUserImage = Convert.ToBase64String(queryUser.FUserImage);
+            PostCommentsDTO.FUserNickName = queryUser.FUserNickName;
+            await _hubContext.Clients.All.SendAsync("ReceiveMessage", PostCommentsDTO);
             return PostCommentsDTO;
         }
 
         // DELETE: api/TPostComments/5
         [HttpDelete("{id}")]
         [Authorize]
-        public async Task<string> DeleteTPostComment(int id)
+        public async Task<IActionResult> DeleteTPostComment(int id)
         {
             int userId = int.Parse(User.FindFirstValue(ClaimTypes.NameIdentifier));
             TPostComment comment = await _context.TPostComments.FindAsync(id);
             if (comment == null)
             {
-                return "查無留言";
+                return NotFound(new { message = "查無留言" });
             }
             if (comment.FUserId != userId)
             {
-                return "你沒有權限修改此留言";
+                return Unauthorized(new { message = "你沒有權限刪除此留言" });
             }
             try
             {
@@ -121,9 +132,9 @@ namespace prjGroupB.Controllers
             }
             catch (DbUpdateException ex)
             {
-                return "刪除資料庫失敗";
+                return StatusCode(500, new { message = "刪除資料庫失敗" });
             }
-            return "刪除留言成功";
+            return Ok(new { message = "刪除留言成功" });
         }
     }
 }

@@ -43,6 +43,10 @@ public partial class TUser
 
     public virtual ICollection<TAttractionUserFavorite> TAttractionUserFavorites { get; set; } = new List<TAttractionUserFavorite>();
 
+    public virtual ICollection<TChat> TChatFReceivers { get; set; } = new List<TChat>();
+
+    public virtual ICollection<TChat> TChatFSenders { get; set; } = new List<TChat>();
+
     public virtual ICollection<TChatRoom> TChatRooms { get; set; } = new List<TChatRoom>();
 
     public virtual ICollection<TEventFavorite> TEventFavorites { get; set; } = new List<TEventFavorite>();
@@ -63,7 +67,7 @@ public partial class TUser
 
     public virtual ICollection<TPostComment> TPostComments { get; set; } = new List<TPostComment>();
 
-    public virtual ICollection<TPostView> TPostViews { get; set; } = new List<TPostView>();
+    public virtual ICollection<TPostLike> TPostLikes { get; set; } = new List<TPostLike>();
 
     public virtual ICollection<TPost> TPosts { get; set; } = new List<TPost>();
 
