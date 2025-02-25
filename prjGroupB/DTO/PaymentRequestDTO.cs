@@ -24,19 +24,19 @@ namespace prjGroupB.DTO
 
     public class PaymentPackage
     {
-        public string Id { get; set; } = string.Empty;
-        public decimal Amount { get; set; }
-        public string Name { get; set; } = string.Empty;
-        public List<PaymentProduct> Products { get; set; } = new List<PaymentProduct>();
+        public string id { get; set; } = string.Empty;
+        public decimal amount { get; set; }
+        public string name { get; set; } = string.Empty;
+        public List<PaymentProduct> products { get; set; } = new List<PaymentProduct>();
     }
 
     public class PaymentProduct
     {
-        public string Id { get; set; } = string.Empty;
-        public string Name { get; set; } = string.Empty;
-        public string ImageUrl { get; set; } = string.Empty;
-        public int Quantity { get; set; }
-        public decimal Price { get; set; }
+        public string id { get; set; } = string.Empty;
+        public string name { get; set; } = string.Empty;
+        public string imageUrl { get; set; } = string.Empty;
+        public int quantity { get; set; }
+        public decimal price { get; set; }
     }
 
     /// <summary>

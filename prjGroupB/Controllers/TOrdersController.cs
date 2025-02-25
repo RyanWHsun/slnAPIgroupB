@@ -69,7 +69,6 @@ namespace prjGroupB.Controllers
                     FUserAddress = user.FUserAddress,
                     TotalBalance = totalBalance
                 });
-
             }
             catch (Exception ex)
             {
@@ -359,7 +358,6 @@ namespace prjGroupB.Controllers
         //取得買家訂單明細
         //GET: api/TOrders/details/{orderId}
         [HttpGet("details/{orderId}")]
-        //[Authorize]
         public async Task<ActionResult<TOrderDetailForBuyerDTO>> GetOrderDetails(int orderId)
         {
             try
@@ -412,6 +410,7 @@ namespace prjGroupB.Controllers
                 return StatusCode(500, new { message = "獲取訂單詳情時發生錯誤", error = ex.Message });
             }
         }
+
         private static string ConvertToThumbnailBase64(byte[] fUserImage, int width, int height)
         {
             using (var ms = new MemoryStream(fUserImage))
@@ -486,14 +485,12 @@ namespace prjGroupB.Controllers
                     return NotFound(new { message = "尚無銷售訂單" });
                 }
                 return Ok(orders);
-
             }
             catch (Exception ex)
             {
                 return StatusCode(500, new { message = "獲取銷售訂單時發生錯誤", error = ex.Message });
             }
         }
-
 
         //賣家更新訂單狀態
         //PUT :api/TOrders/shipOrder/{orderId}
@@ -559,12 +556,10 @@ namespace prjGroupB.Controllers
                 order.FShipAddress = buyerUpdate.FShipAddress;
                 await _context.SaveChangesAsync();
                 return Ok(new { message = "地址已變更完畢!" });
-
             }
             catch (Exception ex)
             {
                 return StatusCode(500, new { message = "更新訂單時發生錯誤", error = ex.Message });
-
             }
         }
 
@@ -595,7 +590,7 @@ namespace prjGroupB.Controllers
                     };
                     _context.TOrderStatusHistories.Add(statusHistory);
 
-                    //計算訂單金額 
+                    //計算訂單金額
                     var orderDetails = await _context.TOrdersDetails
                         .Where(d => d.FOrderId == orderId && d.FItemType == "product")
                         .ToListAsync();
@@ -647,7 +642,6 @@ namespace prjGroupB.Controllers
                 return StatusCode(500, new { message = "更新訂單時發生錯誤，請洽客服。", error = ex.Message });
             }
         }
-
 
         private bool TOrderExists(int id)
         {
