@@ -1,6 +1,7 @@
 ﻿using Microsoft.AspNetCore.Authentication.JwtBearer;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.IdentityModel.Tokens;
+using prjGroupB.Hubs;
 using prjGroupB.Models;
 using System.Text;
 
@@ -12,7 +13,8 @@ builder.Services.AddScoped<IImageService, ImageService>();
 // ? 設定資料庫連線
 builder.Services.AddDbContext<dbGroupBContext>(options =>
     options.UseSqlServer(builder.Configuration.GetConnectionString("dbGroupB")));
-
+// 註冊SignalR
+builder.Services.AddSignalR();
 // ? 設定 JWT 驗證
 var secretKey = "b6t8fJH2WjwYgJt7XPTqVX37WYgKs8TZ"; // 測試密鑰
 builder.Services.AddAuthentication(JwtBearerDefaults.AuthenticationScheme)
@@ -42,16 +44,16 @@ builder.Services.AddAuthentication(JwtBearerDefaults.AuthenticationScheme)
     });
 
 // ? 修正 CORS 設定
-var MyAllowSpecificOrigins = "_myAllowSpecificOrigins";
+var MyAllowSpecificOrigins = "AllowFrontend";
 
 builder.Services.AddCors(options =>
 {
     options.AddPolicy(MyAllowSpecificOrigins, policy =>
     {
         policy.WithOrigins("http://localhost:4200")
+              .AllowCredentials()// 允許攜帶 Cookie
               .AllowAnyHeader()
-              .AllowAnyMethod()
-              .AllowCredentials(); // 允許攜帶 Cookie
+              .AllowAnyMethod(); 
     });
 });
 
@@ -81,9 +83,12 @@ app.UseHttpsRedirection();
 // ? 啟用 JWT 驗證
 app.UseAuthentication();
 app.UseAuthorization();
+//註冊SignalR Hub
+app.MapHub<ChatHub>("/chatHub");
 
 // ? 設定路由
 app.MapControllers();
+
 
 // ? 啟動應用程式
 app.Run();

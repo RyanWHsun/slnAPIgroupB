@@ -48,11 +48,12 @@ namespace prjGroupB.Controllers
                     FQuantity=i.FQuantity,
                     FItemName=GetItemName(i.FItemType,i.FItemId),
                     FSingleImage=GetItemImage(i.FItemType, i.FItemId),
+                    FSellerId = i.FItemType == "product" ? _context.TProducts.FirstOrDefault(p => p.FProductId == i.FItemId)?.FUserId : 0,
                     FSellerName = i.FItemType == "product"? GetSellerName(i.FItemType,i.FItemId):null,
                     FProductStock=i.FItemType =="product"? _context.TProducts.FirstOrDefault(p => p.FProductId == i.FItemId)?.FStock : null,
-                FSpecification = null, //若有規格要填
+                    FSpecification = i.FItemType == "attractionTicket"? _context.TAttractionTickets.FirstOrDefault(p => p.FAttractionTicketId==i.FItemId)?.FTicketType : null,
 
-                }).ToList();
+            }).ToList();
             if (!result.Any())
             {
                 return NotFound(new { messange = "購物車無項目。2" });
@@ -97,16 +98,24 @@ namespace prjGroupB.Controllers
             {
                 return null;
             }
-            using (var context = new dbGroupBContext())
+            try
             {
-                byte[] imageBytes = fItemType switch
+                using (var context = new dbGroupBContext())
                 {
-                    "product" => context.TProductImages.FirstOrDefault(i => i.FProductId == fItemId).FImage,
-                    "attractionTicket" => context.TAttractionImages.FirstOrDefault(a => a.FAttractionId == (context.TAttractionTickets.FirstOrDefault(t => t.FAttractionTicketId == fItemId).FAttractionId)).FImage,
-                    "eventFee" => context.TEventImages.FirstOrDefault(p => p.FEventId == fItemId).FEventImage,
+                    byte[] imageBytes = fItemType switch
+                    {
+                        "product" => context.TProductImages.FirstOrDefault(i => i.FProductId == fItemId).FImage,
+                        "attractionTicket" => context.TAttractionImages.FirstOrDefault(a => a.FAttractionId == (context.TAttractionTickets.FirstOrDefault(t => t.FAttractionTicketId == fItemId).FAttractionId)).FImage,
+                        "eventFee" => context.TEventImages.FirstOrDefault(p => p.FEventId == fItemId).FEventImage,
 
-                };
-                return imageBytes != null ? ConvertToThumbnailBase64(imageBytes, 100, 100) : null;
+                    };
+                    return imageBytes != null ? ConvertToThumbnailBase64(imageBytes, 100, 100) : null;
+                }
+            }
+            catch (Exception ex) 
+            {
+                Console.WriteLine($"GetItemImage有ERROR: {ex.Message}");
+                return null;
             }
 
         }
@@ -208,13 +217,21 @@ namespace prjGroupB.Controllers
         [HttpGet("ItemCount")]
         public async Task <IActionResult> GetCartItemCount()
         {
-            var userId = int.Parse(User.FindFirstValue(ClaimTypes.NameIdentifier));
+            try
+            {
+                var userId = int.Parse(User.FindFirstValue(ClaimTypes.NameIdentifier));
 
-            int count = await _context.TShoppingCartItems
-                .Where(i => _context.TShoppingCarts.Any(c => c.FCartId == i.FCartId && c.FUserId == userId))
-                .CountAsync();  
+                int count = await _context.TShoppingCartItems
+                    .Where(i => _context.TShoppingCarts.Any(c => c.FCartId == i.FCartId && c.FUserId == userId))
+                    .CountAsync();
 
-            return Ok(new { count });
+                return Ok(new { count });
+            }
+            catch (Exception ex) 
+            {
+                return null;
+            }
+
         }
 
         // 單筆刪除
