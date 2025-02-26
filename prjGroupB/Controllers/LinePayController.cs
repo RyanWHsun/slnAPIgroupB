@@ -1,111 +1,112 @@
-﻿using Microsoft.AspNetCore.Mvc;
-using System;
-using System.Collections.Generic;
-using System.Linq;
+﻿using Microsoft.AspNetCore.Authorization;
+using Microsoft.AspNetCore.Mvc;
+using Microsoft.EntityFrameworkCore;
+using System.Net.Http;
+using System.Text.Json;
+using System.Text;
 using System.Threading.Tasks;
-using prjGroupB.DTO;  // ✅ 確保引用 DTO 命名空間
+using System.Security.Claims;
+using prjGroupB.Models; // ✅ 確保引入
 
-[Route("api/[controller]")]
+[AllowAnonymous] // 允許未登入的用戶請求
 [ApiController]
-public class LinePayController : ControllerBase
+[Route("api/payment")]
+public class PaymentController : ControllerBase
 {
     private readonly LinePayService _linePayService;
+    private readonly dbGroupBContext _dbContext;
+    private readonly HttpClient _httpClient;
 
-    public LinePayController(LinePayService linePayService)
+    public PaymentController(LinePayService linePayService, dbGroupBContext dbContext, HttpClient httpClient)
     {
         _linePayService = linePayService;
+        _dbContext = dbContext;
+        _httpClient = httpClient;
     }
 
-    /// <summary>
-    /// 發送 LinePay 付款請求
-    /// </summary>
-    [HttpPost("request-payment")]
-    public async Task<IActionResult> RequestPayment([FromBody] PaymentRequestDTO request)
+    private string GetItemName(string fItemType, int? fItemId)
     {
+        if (fItemId == null) return "未命名商品";
+
         try
         {
-            Console.WriteLine("🚀 進入 RequestPayment API");
-            Console.WriteLine($"📥 接收到的 orderId: {request.OrderId}");
-
-            if (request == null || request.OrderId <= 0)
+            return fItemType switch
             {
-                Console.WriteLine("❌ 無效的訂單 ID，回傳錯誤");
-                return BadRequest(new { message = "無效的訂單 ID" });
-            }
+                "product" => _dbContext.TProducts
+                    .Where(p => p.FProductId == fItemId)
+                    .Select(p => p.FProductName)
+                    .FirstOrDefault() ?? "未命名商品",
 
-            var packages = await _linePayService.GetOrderPackagesAsync(request.OrderId.ToString());
-            if (packages == null || !packages.Any())
-            {
-                Console.WriteLine($"❌ 訂單 {request.OrderId} 沒有對應的商品");
-                return BadRequest(new { message = "找不到對應的訂單商品" });
-            }
+                "attractionTicket" => (from ticket in _dbContext.TAttractionTickets
+                                       join attraction in _dbContext.TAttractions
+                                       on ticket.FAttractionId equals attraction.FAttractionId
+                                       where ticket.FAttractionTicketId == fItemId
+                                       select attraction.FAttractionName)
+                                       .FirstOrDefault() ?? "未命名票券",
 
-            // ✅ 轉換 List<Package> 為 List<PaymentPackage>
-            var paymentPackages = packages.Select(p => new PaymentPackage
-            {
-                id = p.id.ToString(),
-                amount = p.amount,
-                name = p.name,
-                products = p.products?.Select(pr => new PaymentProduct
-                {
-                    id = pr.id.ToString(),
-                    name = pr.name,
-                    imageUrl = pr.imageUrl,
-                    quantity = pr.quantity,
-                    price = pr.price
-                }).ToList() ?? new List<PaymentProduct>()  // 避免 null 例外
-            }).ToList();
+                "eventFee" => _dbContext.TEvents
+                    .Where(e => e.FEventId == fItemId)
+                    .Select(e => e.FEventName)
+                    .FirstOrDefault() ?? "未命名活動",
 
-            var response = await _linePayService.RequestPaymentAsync(
-                request.TotalAmount,
-                "TWD",
-                request.OrderId.ToString(),
-                paymentPackages,
-                request.ConfirmUrl,
-                request.CancelUrl
-            );
-
-            Console.WriteLine($"✅ LINE Pay 回應：{response}");
-            var jsonResponse = Newtonsoft.Json.JsonConvert.DeserializeObject<object>(response);
-            return Ok(jsonResponse);
+                _ => "未知類型"
+            };
         }
         catch (Exception ex)
         {
-            Console.WriteLine($"❌ 發生錯誤：{ex.Message}");
-            return BadRequest(new { message = "付款請求失敗", error = ex.Message });
+            Console.WriteLine($"❌ GetItemName 發生錯誤: {ex.Message}");
+            return "錯誤商品";  // 避免回傳空字串
         }
     }
 
-    /// <summary>
-    /// 確認 LinePay 付款
-    /// </summary>
-    [HttpPost("confirm-payment")]
+    [AllowAnonymous]
+    [HttpPost("request")]
+    public async Task<IActionResult> RequestPayment()
+    {
+        try
+        {
+            var userId = int.TryParse(User.FindFirstValue(ClaimTypes.NameIdentifier), out int uid) ? uid : 0;
+            var shoppingCart = await _dbContext.TShoppingCarts.FirstOrDefaultAsync(c => c.FUserId == userId);
+
+            if (shoppingCart == null) return BadRequest("購物車不存在");
+
+            var cartItems = await _dbContext.TShoppingCartItems
+                .Where(i => i.FCartId == shoppingCart.FCartId)
+                .ToListAsync();
+
+            if (!cartItems.Any()) return BadRequest("購物車是空的");
+
+            // 產生唯一 orderId
+            string orderId = $"ORDER_{DateTimeOffset.UtcNow.ToUnixTimeMilliseconds()}_{userId}";
+
+            // 計算總金額
+            decimal totalAmount = cartItems.Sum(i => (i.FPrice ?? 0) * (i.FQuantity ?? 1));
+            if (totalAmount <= 0) totalAmount = 1; // 確保價格不為 0
+
+            // 呼叫 LinePayService
+            var paymentUrl = await _linePayService.CreatePaymentRequestAsync(totalAmount, orderId, "購物車結帳");
+
+            return Ok(new { paymentUrl });
+        }
+        catch (Exception ex)
+        {
+            return StatusCode(500, $"❌ 付款請求發生錯誤: {ex.Message}");
+        }
+    }
+
+    [HttpPost("confirm")]
     public async Task<IActionResult> ConfirmPayment([FromBody] ConfirmPaymentDto request)
     {
-        try
-        {
-            if (request == null || string.IsNullOrEmpty(request.TransactionId) || request.Amount <= 0)
-            {
-                return BadRequest(new { message = "無效的交易資訊" });
-            }
+        var success = await _linePayService.ConfirmPaymentAsync(request.TransactionId, request.Amount);
+        if (!success)
+            return BadRequest("付款失敗");
 
-            var order = await _linePayService.GetOrderByTransactionIdAsync(request.TransactionId);
-            if (order == null)
-            {
-                return BadRequest(new { message = "無法找到對應的訂單" });
-            }
-
-            if (order.TotalAmount != request.Amount)
-            {
-                return BadRequest(new { message = "付款金額不匹配" });
-            }
-
-            var result = await _linePayService.ConfirmPaymentAsync(request.TransactionId, request.Amount, "TWD");
-            return Ok(result);
-        }
-        catch (Exception ex)
-        {
-            return BadRequest(new { message = "確認付款失敗", error = ex.Message });
-        }
+        return Ok("付款成功");
     }
+}
+
+public class ConfirmPaymentDto
+{
+    public string TransactionId { get; set; }
+    public decimal Amount { get; set; }
 }
