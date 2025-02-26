@@ -2,6 +2,7 @@
 {
     public class TPostsUserInfoDTO
     {
+        public int FUserId { get; set; }
         public string FUserName { get; set; }
 
         public string? FUserImage { get; set; }
