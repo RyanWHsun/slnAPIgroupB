@@ -1,95 +1,60 @@
 ﻿using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
-using System.Net.Http;
-using System.Text.Json;
-using System.Text;
-using System.Threading.Tasks;
 using System.Security.Claims;
-using prjGroupB.Models; // ✅ 確保引入
+using System.Threading.Tasks;
+using System;
+using System.Linq;
+using System.Collections.Generic;
+using System.Text.Json;
+using prjGroupB.Models;
 
-[AllowAnonymous] // 允許未登入的用戶請求
+[AllowAnonymous]
 [ApiController]
 [Route("api/payment")]
-public class PaymentController : ControllerBase
+public class LinePayController : ControllerBase
 {
     private readonly LinePayService _linePayService;
     private readonly dbGroupBContext _dbContext;
-    private readonly HttpClient _httpClient;
 
-    public PaymentController(LinePayService linePayService, dbGroupBContext dbContext, HttpClient httpClient)
+    public LinePayController(LinePayService linePayService, dbGroupBContext dbContext)
     {
         _linePayService = linePayService;
         _dbContext = dbContext;
-        _httpClient = httpClient;
     }
 
-    private string GetItemName(string fItemType, int? fItemId)
-    {
-        if (fItemId == null) return "未命名商品";
-
-        try
-        {
-            return fItemType switch
-            {
-                "product" => _dbContext.TProducts
-                    .Where(p => p.FProductId == fItemId)
-                    .Select(p => p.FProductName)
-                    .FirstOrDefault() ?? "未命名商品",
-
-                "attractionTicket" => (from ticket in _dbContext.TAttractionTickets
-                                       join attraction in _dbContext.TAttractions
-                                       on ticket.FAttractionId equals attraction.FAttractionId
-                                       where ticket.FAttractionTicketId == fItemId
-                                       select attraction.FAttractionName)
-                                       .FirstOrDefault() ?? "未命名票券",
-
-                "eventFee" => _dbContext.TEvents
-                    .Where(e => e.FEventId == fItemId)
-                    .Select(e => e.FEventName)
-                    .FirstOrDefault() ?? "未命名活動",
-
-                _ => "未知類型"
-            };
-        }
-        catch (Exception ex)
-        {
-            Console.WriteLine($"❌ GetItemName 發生錯誤: {ex.Message}");
-            return "錯誤商品";  // 避免回傳空字串
-        }
-    }
-
-    [AllowAnonymous]
     [HttpPost("request")]
-    public async Task<IActionResult> RequestPayment()
+    public async Task<IActionResult> RequestPayment([FromBody] LinePayRequestDto linePayRequestDto)
     {
         try
         {
-            var userId = int.TryParse(User.FindFirstValue(ClaimTypes.NameIdentifier), out int uid) ? uid : 0;
-            var shoppingCart = await _dbContext.TShoppingCarts.FirstOrDefaultAsync(c => c.FUserId == userId);
+            if (linePayRequestDto == null)
+            {
+                return BadRequest("Request body is missing or incorrect.");
+            }
 
-            if (shoppingCart == null) return BadRequest("購物車不存在");
+            var userId = 4; // 假設已登入
+            if (userId == 0) return Unauthorized("請先登入");
 
-            var cartItems = await _dbContext.TShoppingCartItems
-                .Where(i => i.FCartId == shoppingCart.FCartId)
-                .ToListAsync();
+            // **查詢購物車**
+            var shoppingCart = await _dbContext.TShoppingCarts
+                .Include(c => c.FUser)
+                .Include(c => c.TShoppingCartItems)
+                .FirstOrDefaultAsync(c => c.FUserId == userId);
 
-            if (!cartItems.Any()) return BadRequest("購物車是空的");
+            if (shoppingCart == null || !shoppingCart.TShoppingCartItems.Any())
+                return BadRequest("購物車是空的");
 
-            // 產生唯一 orderId
-            string orderId = $"ORDER_{DateTimeOffset.UtcNow.ToUnixTimeMilliseconds()}_{userId}";
+            // **發送 LINE Pay 請求**
+            var paymentUrl = await _linePayService.CreatePaymentRequestAsync(linePayRequestDto);
 
-            // 計算總金額
-            decimal totalAmount = cartItems.Sum(i => (i.FPrice ?? 0) * (i.FQuantity ?? 1));
-            if (totalAmount <= 0) totalAmount = 1; // 確保價格不為 0
-
-            // 呼叫 LinePayService
-            var paymentUrl = await _linePayService.CreatePaymentRequestAsync(totalAmount, orderId, "購物車結帳");
+            Console.WriteLine($"✅ 付款連結：{paymentUrl}");
 
             return Ok(new { paymentUrl });
         }
         catch (Exception ex)
         {
+            Console.WriteLine($"❌ 付款 API 失敗: {ex.Message}");
             return StatusCode(500, $"❌ 付款請求發生錯誤: {ex.Message}");
         }
     }
@@ -97,16 +62,17 @@ public class PaymentController : ControllerBase
     [HttpPost("confirm")]
     public async Task<IActionResult> ConfirmPayment([FromBody] ConfirmPaymentDto request)
     {
-        var success = await _linePayService.ConfirmPaymentAsync(request.TransactionId, request.Amount);
-        if (!success)
-            return BadRequest("付款失敗");
+        try
+        {
+            var success = await _linePayService.ConfirmPaymentAsync(request.transactionId, request.amount);
+            if (!success)
+                return BadRequest("付款失敗");
 
-        return Ok("付款成功");
+            return Ok("付款成功");
+        }
+        catch (Exception ex)
+        {
+            return StatusCode(500, $"❌ 確認付款發生錯誤: {ex.Message}");
+        }
     }
-}
-
-public class ConfirmPaymentDto
-{
-    public string TransactionId { get; set; }
-    public decimal Amount { get; set; }
 }
