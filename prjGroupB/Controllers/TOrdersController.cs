@@ -604,9 +604,9 @@ namespace prjGroupB.Controllers
 
         //賣家更新訂單BY QRcode 
         //PUT :api/TOrders/shipOrder/{orderId}
-        [HttpPut("shipOrderByQR/{orderId}")]
-        [EnableCors("AllowQRScan")]
-        public async Task<IActionResult> ShipOrderByQR(int orderId)
+        [HttpGet("shipOrderByQR/{orderId}")]
+        [EnableCors("AllowWebSite")]
+        public async Task<IActionResult> ShipOrderByQR(int orderId, [FromServices] IHubContext<OrderHub> hubContext)
         {
             try
             {   //找訂單
@@ -635,8 +635,10 @@ namespace prjGroupB.Controllers
                         FTimestamp = DateTime.Now
                     };
                     _context.TOrderStatusHistories.Add(statusHistory);
+                    _context.TOrderStatusHistories.Add(statusHistory);
                 }                
                 await _context.SaveChangesAsync();
+                await hubContext.Clients.All.SendAsync("OrderUpdated", orderId);
                 return Ok(new { message = "訂單狀態已更新" });
             }
             catch (Exception ex)
@@ -646,43 +648,44 @@ namespace prjGroupB.Controllers
         }
 
         //中介程式GET
-        [HttpGet("webhook/shipOrder/{orderId}")]
-        [EnableCors("AllowQRScan")]
-        public async Task<IActionResult> WebhookShipOrder(int orderId, [FromServices] IHubContext<OrderHub> hubContext)
-        {
-            try
-            {
-                Console.WriteLine($"Webhook 被觸發，訂單 ID: {orderId}");
-                using (var handler = new HttpClientHandler() { AllowAutoRedirect = true })
-                using (var client = new HttpClient())
-                {
-                    string apiUrl = $"https://localhost:7112/api/TOrders/shipOrderByQR/{orderId}";
+        //[HttpGet("webhook/shipOrder/{orderId}")]
+        //[EnableCors("AllowQRScan")]
+        //public async Task<IActionResult> WebhookShipOrder(int orderId, [FromServices] IHubContext<OrderHub> hubContext)
+        //{
+        //    try
+        //    {
+        //        Console.WriteLine($"Webhook 被觸發，訂單 ID: {orderId}");
+        //        using (var handler = new HttpClientHandler() { AllowAutoRedirect = true })
+        //        using (var client = new HttpClient())
+        //        {
+        //            string apiUrl = $"https://localhost:7112/api/TOrders/shipOrderByQR/{orderId}";
 
-                    // 透過 `PUT` 請求更新訂單狀態
-                    var response = await client.PutAsync(apiUrl, null);
+        //            // 透過 `PUT` 請求更新訂單狀態
+        //            var response = await client.PutAsync(apiUrl, null);
 
-                    if (response.IsSuccessStatusCode)
-                    {
-                        // 使用 SignalR 通知前端 (sellerOrder.component)
-                        await hubContext.Clients.All.SendAsync("OrderUpdated", orderId);
-                        return Ok(new { message = $"訂單 {orderId} 已成功更新！" });
-                    }
-                    else
-                    {
-                        return StatusCode((int)response.StatusCode, new { message = "訂單更新失敗", error = await response.Content.ReadAsStringAsync() });
-                    }
-                }
-            }
-            catch (Exception ex)
-            {
-                return StatusCode(500, new { message = "內部錯誤", error = ex.Message });
-            }
-        }
+        //            if (response.IsSuccessStatusCode)
+        //            {
+        //                // 使用 SignalR 通知前端 (sellerOrder.component)
+        //                await hubContext.Clients.All.SendAsync("OrderUpdated", orderId);
+        //                return Ok(new { message = $"訂單 {orderId} 已成功更新！" });
+        //            }
+        //            else
+        //            {
+        //                return StatusCode((int)response.StatusCode, new { message = "訂單更新失敗", error = await response.Content.ReadAsStringAsync() });
+        //            }
+        //        }
+        //    }
+        //    catch (Exception ex)
+        //    {
+        //        return StatusCode(500, new { message = "內部錯誤", error = ex.Message });
+        //    }
+        //}
 
 
         //買家更新訂單
         //PUT :api/TOrders/buyerUpdateAddress/{orderId}
         [HttpPut("buyerUpdateAddress/{orderId}")]
+        [EnableCors("AllowWebSite")]
         public async Task<IActionResult> BuyerUpdateAddress(int orderId, [FromBody] BuyerUpdateDTO? buyerUpdate)
         {
             try
@@ -803,7 +806,7 @@ namespace prjGroupB.Controllers
             try
             {
                 //QR內容是呼叫API的URL
-                string qrText = $"https://special-publicly-humpback.ngrok-free.app/api/TOrders/webhook/shipOrder/{orderId}";            
+                string qrText = $"https://special-publicly-humpback.ngrok-free.app/api/TOrders/shipOrderByQR/{orderId}";            
 
                 // 生成 QR Code
                 QRCodeGenerator qrGenerator = new QRCodeGenerator();
