@@ -209,7 +209,7 @@ namespace prjGroupB.Controllers
                             {
                                 FUserId = buyerId,
                                 FAmountChange = (int)(-orderTotal),// 扣款，確保轉換為 int
-                                FChangeLog = $"付款：訂單編號#{order.FOrderId}",
+                                FChangeLog = $"付款：商品訂單編號#{order.FOrderId}",
                                 FChangeTime = DateTime.Now,
                             };
                             _context.TWallets.Add(walletTransaction);
@@ -257,7 +257,7 @@ namespace prjGroupB.Controllers
                                 {
                                     FUserId = buyerId,
                                     FAmountChange = (int)(-orderTotal), // 扣款，確保轉換為 int
-                                    FChangeLog = $"付款：報名編號{newEvent.FEventRegistrationFormId}",
+                                    FChangeLog = $"付款：活動報名編號#{newEvent.FEventRegistrationFormId}",
                                     FChangeTime = DateTime.Now
                                 };
                                 _context.TWallets.Add(walletTransaction);
@@ -306,7 +306,7 @@ namespace prjGroupB.Controllers
                                 {
                                     FUserId = buyerId,
                                     FAmountChange = (int)(-orderTotal), // 扣款，確保轉換為 int
-                                    FChangeLog = $"付款：票券報名編號{newTicket.FAttractionTicketOrderId}",
+                                    FChangeLog = $"付款：票券報名編號#{newTicket.FAttractionTicketOrderId}",
                                     FChangeTime = DateTime.Now
                                 };
                                 _context.TWallets.Add(walletTransaction);
