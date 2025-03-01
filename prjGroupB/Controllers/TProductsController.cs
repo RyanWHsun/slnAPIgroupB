@@ -358,10 +358,10 @@ namespace prjGroupB.Controllers
             try
             {
                 var products = await _context.TProducts
-                    .Include(p => p.TProductImages) // 載入商品圖片導覽屬性
                     .Where(p => p.FIsOnSales == true)
                     .OrderByDescending(p => p.FProductDateAdd)
                     .Take(4)
+                    .Include(p => p.TProductImages) // 載入商品圖片導覽屬性
                     .ToListAsync();
 
                 var latestProducts = products.Select(p => new TProductLatestDTO
