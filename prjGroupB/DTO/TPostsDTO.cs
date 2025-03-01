@@ -6,9 +6,9 @@
 
         public int? FUserId { get; set; }
 
-        public string FTitle { get; set; }
+        public string? FTitle { get; set; }
 
-        public string FContent { get; set; }
+        public string? FContent { get; set; }
 
         public DateTime? FCreatedAt { get; set; }
 

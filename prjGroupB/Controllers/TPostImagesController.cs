@@ -66,6 +66,8 @@ namespace prjGroupB.Controllers
         [Authorize]
         public async Task<List<TPostImagesDTO>> PostTPostImage(List<TPostImagesDTO> PostImagesDTOs)
         {
+            if (PostImagesDTOs.Count == 0)
+                return null;
             int userId = int.Parse(User.FindFirstValue(ClaimTypes.NameIdentifier));
             int postId = (int)PostImagesDTOs.First().FPostId;
             TPost post = await _context.TPosts.FindAsync(postId);
@@ -91,29 +93,67 @@ namespace prjGroupB.Controllers
             return PostImagesDTOs;
         }
 
+        //[HttpPut]
+        //[Authorize]
+        //public async Task<IActionResult> PutTPostImage(List<TPostImagesDTO> PostImagesDTOs)
+        //{
+        //    int userId = int.Parse(User.FindFirstValue(ClaimTypes.NameIdentifier));
+        //    int postId = (int)PostImagesDTOs.First().FPostId;
+        //    TPost post = await _context.TPosts.FindAsync(postId);
+        //    if (post.FUserId != userId)
+        //    {
+        //        return Unauthorized(new { message = "你沒有權限修改此文章" });
+        //    }
+        //    List<TPostImage> postImagesForDelete = _context.TPostImages.Where(e => e.FPostId == postId).ToList();
+        //    List<TPostImage> postImages = new List<TPostImage>();
+        //    foreach (TPostImagesDTO DTO in PostImagesDTOs)
+        //    {
+        //        postImages.Add(new TPostImage
+        //        {
+        //            FPostId = DTO.FPostId,
+        //            FImage = Convert.FromBase64String(DTO.FImage.Split(',')[1])
+        //        });
+        //    }
+        //    try
+        //    {
+        //        _context.TPostImages.RemoveRange(postImagesForDelete);
+        //        _context.TPostImages.AddRange(postImages);
+        //        await _context.SaveChangesAsync();
+        //    }catch (DbUpdateException ex)
+        //    {
+        //        return StatusCode(500, new { message = "修改資料庫失敗" });
+        //    }
+        //    return Ok(new { message = "修改文章成功" });
+        //}
+
         // DELETE: api/TPostImages/5
+        // id 代表文章id
         [HttpDelete("{id}")]
         [Authorize]
-        public async Task<string> DeleteTPost(int id)
+        public async Task<IActionResult> DeleteTPostImage(int id)
         {
             int userId = int.Parse(User.FindFirstValue(ClaimTypes.NameIdentifier));
-            TPostImage postImage = await _context.TPostImages.FindAsync(id);
-            int postId = (int)postImage.FPostId;
+            List<TPostImage> postImages = _context.TPostImages.Where(e=>e.FPostId==id).ToList();
+            if (postImages.Count==0)
+            {
+                return Ok(new { message = "無圖片需要刪除" });
+            }
+            int postId = (int)postImages.First().FPostId;
             TPost post = await _context.TPosts.FindAsync(postId);
             if (post.FUserId != userId)
             {
-                return "你沒有權限刪除此圖片";
+                return Unauthorized(new { message = "你沒有權限修改此圖片" });
             }
             try
             {
-                _context.TPostImages.Remove(postImage);
+                _context.TPostImages.RemoveRange(postImages);
                 await _context.SaveChangesAsync();
             }
             catch (DbUpdateException ex)
             {
-                return "刪除資料庫失敗";
+                return StatusCode(500, new { message = "修改資料庫失敗" });
             }
-            return "刪除圖片成功";
+            return Ok(new { message = "刪除圖片成功" });
         }
     }
 }

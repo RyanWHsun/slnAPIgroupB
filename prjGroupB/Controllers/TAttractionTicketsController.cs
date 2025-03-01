@@ -37,10 +37,10 @@ namespace prjGroupB.Controllers {
             return attractionTicketDTOs;
         }
 
-        // GET: api/TAttractionTickets/Search?isDistinct=true&pageSize=9&pageIndex=0
+        // GET: api/TAttractionTickets/Search?isDistinct=true&pageSize=9&pageIndex=0&orderBy=createdDate
         [HttpGet]
         [Route("Search")]
-        public async Task<IEnumerable<TAttractionTicketDTO>> GetTAttractionTickets(bool isDistinct, int pageSize = 9, int pageIndex = 0) {
+        public async Task<IEnumerable<TAttractionTicketDTO>> GetTAttractionTickets(bool isDistinct, int pageSize = 9, int pageIndex = 0, string orderBy = "") {
             var tickets = new List<TAttractionTicket>();
             // 先載入所有資料到記憶體
             var allTickets = await _context.TAttractionTickets
@@ -57,6 +57,13 @@ namespace prjGroupB.Controllers {
             else {
                 tickets = allTickets;
             }
+
+            // 依時間排序(由近到遠)
+            if (orderBy == "createdDate") {
+                // OrderByDescending() 會根據 FCreatedDate（可能是日期欄位）降序排列，即「最新的記錄」在最前。
+                tickets = tickets.OrderByDescending(ticket => ticket.FCreatedDate).ToList();
+            }
+
             // .Skip(pageSize * pageIndex):
             // 跳過 pageSize *pageIndex 筆資料。
             // 假設 pageIndex = 0，則跳過 10 * 0 = 0 筆，表示從第一筆開始。
