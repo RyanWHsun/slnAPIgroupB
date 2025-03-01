@@ -7,9 +7,12 @@ using System.Threading.Tasks;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Mvc;
+using Microsoft.AspNetCore.SignalR;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Hosting;
+using NuGet.Protocol.Plugins;
 using prjGroupB.DTO;
+using prjGroupB.Hubs;
 using prjGroupB.Models;
 
 namespace prjGroupB.Controllers
@@ -19,10 +22,12 @@ namespace prjGroupB.Controllers
     public class TChatsController : ControllerBase
     {
         private readonly dbGroupBContext _context;
+        private readonly IHubContext<ChatHub> _hubContext;
 
-        public TChatsController(dbGroupBContext context)
+        public TChatsController(dbGroupBContext context, IHubContext<ChatHub> hubContext)
         {
             _context = context;
+            _hubContext = hubContext;
         }
 
         // GET: api/TChats/5
@@ -31,36 +36,50 @@ namespace prjGroupB.Controllers
         [Authorize]
         public async Task<IEnumerable<TChatsDTO>> GetTChat(int id)
         {
-            int userId = int.Parse(User.FindFirstValue(ClaimTypes.NameIdentifier));
-            if (userId == id)
-                return null;
-            return _context.TChats
-                .Where(c => (c.FSenderId == userId && c.FReceiverId == id)
-                || (c.FSenderId == id && c.FReceiverId == userId))
-                .Select(e => new TChatsDTO
-                {
-                    FChatId = e.FChatId,
-                    FSenderId = e.FSenderId,
-                    FReceiverId = e.FReceiverId,
-                    FMessageText = e.FMessageText,
-                    FSentAt = e.FSentAt.ToString()
-                });
+            try
+            {
+                int userId = int.Parse(User.FindFirstValue(ClaimTypes.NameIdentifier));
+                if (userId == id)
+                    return null;
+                return _context.TChats
+                    .Where(c => (c.FSenderId == userId && c.FReceiverId == id)
+                    || (c.FSenderId == id && c.FReceiverId == userId))
+                    .Select(e => new TChatsDTO
+                    {
+                        FChatId = e.FChatId,
+                        FSenderId = e.FSenderId,
+                        FReceiverId = e.FReceiverId,
+                        FMessageText = e.FMessageText,
+                        FSentAt = e.FSentAt.ToString()
+                    });
+            }
+            catch (Exception ex) {
+                Console.WriteLine($"取得聊天室內容失敗: {ex.Message}");
+                return new List<TChatsDTO>();
+            }
         }
         [HttpGet("Contact")]
         [Authorize]
         public IEnumerable<int?> GetContact()
         {
-            int userId = int.Parse(User.FindFirstValue(ClaimTypes.NameIdentifier));
-            return _context.TChats
-                .Where(c => c.FSenderId == userId || c.FReceiverId == userId)
-                .GroupBy(c => c.FSenderId == userId ? c.FReceiverId : c.FSenderId)
-                .Select(g => new
-                {
-                    ContactedUserID = g.Key,
-                    LastContactTime = g.Max(c => c.FSentAt)
-                })
-                .OrderByDescending(g => g.LastContactTime)
-                .Select(e => e.ContactedUserID);
+            try
+            {
+                int userId = int.Parse(User.FindFirstValue(ClaimTypes.NameIdentifier));
+                return _context.TChats
+                    .Where(c => c.FSenderId == userId || c.FReceiverId == userId)
+                    .GroupBy(c => c.FSenderId == userId ? c.FReceiverId : c.FSenderId)
+                    .Select(g => new
+                    {
+                        ContactedUserID = g.Key,
+                        LastContactTime = g.Max(c => c.FSentAt)
+                    })
+                    .OrderByDescending(g => g.LastContactTime)
+                    .Select(e => e.ContactedUserID);
+            }
+            catch (Exception ex) {
+                Console.WriteLine($"取得聯絡人失敗: {ex.Message}");
+                return new List<int?>();
+            }
         }
 
 
@@ -68,23 +87,33 @@ namespace prjGroupB.Controllers
         // To protect from overposting attacks, see https://go.microsoft.com/fwlink/?linkid=2123754
         [HttpPost]
         [Authorize]
-        public async Task<TChatsDTO> PostTChat(TChatsDTO ChatsDTO)
+        public async Task<IActionResult> PostTChat(TChatsDTO ChatsDTO)
         {
-            int userId = int.Parse(User.FindFirstValue(ClaimTypes.NameIdentifier));
-            if (userId == ChatsDTO.FReceiverId)
-                return null;
-            TChat chat = new TChat
+            try
             {
-                FSenderId = userId,
-                FReceiverId = ChatsDTO.FReceiverId,
-                FMessageText = ChatsDTO.FMessageText,
-                FSentAt = DateTime.Now
-            };
-            _context.TChats.Add(chat);
-            await _context.SaveChangesAsync();
-            ChatsDTO.FChatId = chat.FChatId;
-            ChatsDTO.FSenderId = chat.FSenderId;
-            return ChatsDTO;
+                int userId = int.Parse(User.FindFirstValue(ClaimTypes.NameIdentifier));
+                if (userId == ChatsDTO.FReceiverId)
+                    return Unauthorized(new { message = "你沒有權限留言" });
+                TChat chat = new TChat
+                {
+                    FSenderId = userId,
+                    FReceiverId = ChatsDTO.FReceiverId,
+                    FMessageText = ChatsDTO.FMessageText,
+                    FSentAt = DateTime.Now
+                };
+                _context.TChats.Add(chat);
+                await _context.SaveChangesAsync();
+                ChatsDTO.FChatId = chat.FChatId;
+                ChatsDTO.FSenderId = chat.FSenderId;
+                ChatsDTO.FSentAt = chat.FSentAt.ToString();
+                await _hubContext.Clients.Users(ChatsDTO.FSenderId.ToString(), ChatsDTO.FReceiverId.ToString()).SendAsync("ReceivePrivateMessage", ChatsDTO);
+                return Ok(new { message = "新增留言成功" });
+            }
+            catch (Exception ex) {
+                Console.WriteLine($"新增聊天室留言失敗: {ex.Message}");
+                return Ok(new { message = $"新增聊天室留言失敗: {ex.Message}" });
+            }
+
         }
     }
 }

@@ -27,18 +27,25 @@ namespace prjGroupB.Controllers
         [HttpGet("getPublicImages/{id}")]
         public async Task<IActionResult> GetPublicImages(int id)
         {
-            TPost post = await _context.TPosts.FindAsync(id);
-            if (post.FIsPublic != true)
+            try
             {
-                return Unauthorized("您沒有權限查看此文章的圖片");
+                TPost post = await _context.TPosts.FindAsync(id);
+                if (post.FIsPublic != true)
+                {
+                    return Unauthorized("您沒有權限查看此文章的圖片");
+                }
+                var images = _context.TPostImages.Where(i => i.FPostId == id).Select(e => e.FImage);
+                List<string> imageList = new List<string>();
+                foreach (byte[] image in images)
+                {
+                    imageList.Add(Convert.ToBase64String(image));
+                }
+                return Ok(imageList);
             }
-            var images = _context.TPostImages.Where(i => i.FPostId == id).Select(e => e.FImage);
-            List<string> imageList = new List<string>();
-            foreach (byte[] image in images)
-            {
-                imageList.Add(Convert.ToBase64String(image));
+            catch (Exception ex) {
+                Console.WriteLine($"取得公開文章圖片失敗: {ex.Message}");
+                return Ok(new { message = $"取得公開文章圖片失敗: {ex.Message}" });
             }
-            return Ok(imageList);
         }
 
         // GET: api/TPostImages/5
@@ -46,6 +53,7 @@ namespace prjGroupB.Controllers
         [Authorize]
         public async Task<IActionResult> GetTPostImages(int id)
         {
+            try { 
             int userId = int.Parse(User.FindFirstValue(ClaimTypes.NameIdentifier));
             TPost post = await _context.TPosts.FindAsync(id);
             if (post.FUserId != userId)
@@ -59,6 +67,12 @@ namespace prjGroupB.Controllers
                 imageList.Add(Convert.ToBase64String(image));
             }
             return Ok(imageList);
+            }
+            catch (Exception ex)
+            {
+                Console.WriteLine($"取得個人文章圖片失敗: {ex.Message}");
+                return Ok(new { message = $"取得個人文章圖片失敗: {ex.Message}" });
+            }
         }
 
         // POST: api/TPostImages/
@@ -66,33 +80,40 @@ namespace prjGroupB.Controllers
         [Authorize]
         public async Task<List<TPostImagesDTO>> PostTPostImage(List<TPostImagesDTO> PostImagesDTOs)
         {
-            if (PostImagesDTOs.Count == 0)
-                return null;
-            int userId = int.Parse(User.FindFirstValue(ClaimTypes.NameIdentifier));
-            int postId = (int)PostImagesDTOs.First().FPostId;
-            TPost post = await _context.TPosts.FindAsync(postId);
-            if (post.FUserId != userId)
+            try
             {
-                return null;
-            }
-            List<TPostImage> postImages = new List<TPostImage>();
-            foreach (TPostImagesDTO DTO in PostImagesDTOs)
-            {
-                postImages.Add(new TPostImage
+                if (PostImagesDTOs.Count == 0)
+                    return null;
+                int userId = int.Parse(User.FindFirstValue(ClaimTypes.NameIdentifier));
+                int postId = (int)PostImagesDTOs.First().FPostId;
+                TPost post = await _context.TPosts.FindAsync(postId);
+                if (post.FUserId != userId)
                 {
-                    FPostId = DTO.FPostId,
-                    FImage = Convert.FromBase64String(DTO.FImage.Split(',')[1])
-                });
+                    return null;
+                }
+                List<TPostImage> postImages = new List<TPostImage>();
+                foreach (TPostImagesDTO DTO in PostImagesDTOs)
+                {
+                    postImages.Add(new TPostImage
+                    {
+                        FPostId = DTO.FPostId,
+                        FImage = Convert.FromBase64String(DTO.FImage.Split(',')[1])
+                    });
+                }
+                _context.TPostImages.AddRange(postImages);
+                await _context.SaveChangesAsync();
+                for (int i = 0; i < postImages.Count; i++)
+                {
+                    PostImagesDTOs[i].FImageId = postImages[i].FImageId;
+                }
+                return PostImagesDTOs;
             }
-            _context.TPostImages.AddRange(postImages);
-            await _context.SaveChangesAsync();
-            for (int i = 0; i < postImages.Count; i++)
+            catch (Exception ex)
             {
-                PostImagesDTOs[i].FImageId = postImages[i].FImageId;
+                Console.WriteLine($"新增文章圖片失敗: {ex.Message}");
+                return new List<TPostImagesDTO>();
             }
-            return PostImagesDTOs;
         }
-
         //[HttpPut]
         //[Authorize]
         //public async Task<IActionResult> PutTPostImage(List<TPostImagesDTO> PostImagesDTOs)
@@ -132,28 +153,35 @@ namespace prjGroupB.Controllers
         [Authorize]
         public async Task<IActionResult> DeleteTPostImage(int id)
         {
-            int userId = int.Parse(User.FindFirstValue(ClaimTypes.NameIdentifier));
-            List<TPostImage> postImages = _context.TPostImages.Where(e=>e.FPostId==id).ToList();
-            if (postImages.Count==0)
-            {
-                return Ok(new { message = "無圖片需要刪除" });
-            }
-            int postId = (int)postImages.First().FPostId;
-            TPost post = await _context.TPosts.FindAsync(postId);
-            if (post.FUserId != userId)
-            {
-                return Unauthorized(new { message = "你沒有權限修改此圖片" });
-            }
             try
             {
-                _context.TPostImages.RemoveRange(postImages);
-                await _context.SaveChangesAsync();
+                int userId = int.Parse(User.FindFirstValue(ClaimTypes.NameIdentifier));
+                List<TPostImage> postImages = _context.TPostImages.Where(e => e.FPostId == id).ToList();
+                if (postImages.Count == 0)
+                {
+                    return Ok(new { message = "無圖片需要刪除" });
+                }
+                int postId = (int)postImages.First().FPostId;
+                TPost post = await _context.TPosts.FindAsync(postId);
+                if (post.FUserId != userId)
+                {
+                    return Unauthorized(new { message = "你沒有權限修改此圖片" });
+                }
+                try
+                {
+                    _context.TPostImages.RemoveRange(postImages);
+                    await _context.SaveChangesAsync();
+                }
+                catch (DbUpdateException ex)
+                {
+                    return StatusCode(500, new { message = "修改資料庫失敗" });
+                }
+                return Ok(new { message = "刪除圖片成功" });
             }
-            catch (DbUpdateException ex)
-            {
-                return StatusCode(500, new { message = "修改資料庫失敗" });
+            catch (Exception ex) {
+                Console.WriteLine($"刪除文章圖片失敗: {ex.Message}");
+                return Ok(new { message = $"刪除文章圖片失敗: {ex.Message}" });
             }
-            return Ok(new { message = "刪除圖片成功" });
         }
     }
 }

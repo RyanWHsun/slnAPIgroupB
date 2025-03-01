@@ -26,12 +26,19 @@ namespace prjGroupB.Controllers
         [HttpGet]
         public async Task<IEnumerable<TPostCategoryDTO>> GetTPostCategories()
         {
-            return _context.TPostCategories
-               .Select(e => new TPostCategoryDTO
-               {
-                   FCategoryId = e.FCategoryId,
-                   FName = e.FName
-               });
+            try
+            {
+                return _context.TPostCategories
+                   .Select(e => new TPostCategoryDTO
+                   {
+                       FCategoryId = e.FCategoryId,
+                       FName = e.FName
+                   });
+            }
+            catch (Exception ex) {
+                Console.WriteLine($"取得文章類別失敗: {ex.Message}");
+                return new List<TPostCategoryDTO>();
+            }
         }
     }
 }
