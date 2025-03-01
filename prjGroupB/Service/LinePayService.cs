@@ -1,192 +1,120 @@
 ﻿using System;
-using System.Collections.Generic;
+using System.Net.Http;
+using System.Text;
+using System.Text.Json;
 using System.Threading.Tasks;
-using Microsoft.Extensions.Configuration;
-using RestSharp;
-using Newtonsoft.Json;
-using Dapper;
-using Microsoft.Data.SqlClient;
+using System.Security.Cryptography;
+using Microsoft.AspNetCore.Authorization;
+using Microsoft.AspNetCore.Mvc;
 
 public class LinePayService
 {
-    private readonly IConfiguration _config;
-    private readonly string _channelId;
-    private readonly string _channelSecret;
-    private readonly string _baseUrl;
-    private readonly string _connectionString;
+    private readonly HttpClient _httpClient;
+    private const string LINE_PAY_BASE_URL = "https://sandbox-api-pay.line.me"; // 測試環境
+    private const string LINE_PAY_REQUEST_URL = "/v3/payments/request";
+    private const string LINE_PAY_CONFIRM_URL = "/v3/payments/{0}/confirm";
 
-    public LinePayService(IConfiguration config)
+    private const string CHANNEL_ID = "2006949561";
+    private const string CHANNEL_SECRET = "1724fe3b7e82ea6bd7cf8cfcd91f0d4a";
+
+    private const string FRONTEND_BASE_URL = "https://28e9-1-160-19-244.ngrok-free.app/event/detail/2007"; // 你的前端網址
+
+    public LinePayService(HttpClient httpClient)
     {
-        _config = config;
-        _channelId = _config["LinePay:ChannelId"];
-        _channelSecret = _config["LinePay:ChannelSecret"];
-        _baseUrl = _config["LinePay:BaseUrl"];
-        _connectionString = _config.GetConnectionString("dbGroupB"); // ✅ 確保用正確的 Key
+        _httpClient = httpClient;
     }
 
-    // ✅ 取得訂單商品資訊
-    public async Task<List<PaymentPackage>> GetOrderPackagesAsync(string orderId)
+    /// **🔹 產生 HMAC-SHA256 簽名**
+    private string GenerateHmacSHA256(string message, string key)
     {
-        Console.WriteLine($"🔍 查詢訂單 {orderId} 是否存在...");
-
-        using (var connection = new SqlConnection(_connectionString))
+        using (var hmac = new HMACSHA256(Encoding.UTF8.GetBytes(key)))
         {
-            var query = @"
-        SELECT
-            OD.fItemId AS ProductId,
-            P.fProductName AS ProductName,
-            P.fProductPrice AS ProductPrice
-        FROM tOrdersDetails OD
-        JOIN tProduct P ON OD.fItemId = P.fProductId
-        WHERE OD.fOrderId = @OrderId;";
-
-            var orderItems = (await connection.QueryAsync(query, new { OrderId = orderId })).ToList();
-
-            if (orderItems == null || orderItems.Count == 0)
-            {
-                Console.WriteLine($"❌ 查無此訂單 {orderId}，回傳空資料");
-                return new List<PaymentPackage>(); // 讓前端顯示錯誤訊息
-            }
-
-            Console.WriteLine($"✅ 訂單 {orderId} 存在，商品數量: {orderItems.Count}");
-
-            var packages = new List<PaymentPackage>();
-            var package = new PaymentPackage
-            {
-                id = "PKG001",
-                amount = 0,
-                name = "訂單結帳",
-                products = new List<PaymentProduct>()
-            };
-
-            foreach (var item in orderItems)
-            {
-                var product = new PaymentProduct
-                {
-                    id = item.ProductId.ToString(),
-                    name = string.IsNullOrWhiteSpace(item.ProductName) ? "預設商品名稱" : item.ProductName,
-                    imageUrl = "https://example.com/default-product.jpg",
-                    quantity = 1, // 假設數量為 1
-                    price = item.ProductPrice
-                };
-                package.products.Add(product);
-                package.amount += item.ProductPrice;
-            }
-
-            packages.Add(package);
-            return packages;
+            byte[] hash = hmac.ComputeHash(Encoding.UTF8.GetBytes(message));
+            return Convert.ToBase64String(hash);
         }
     }
-
-    // ✅ 取得訂單資訊
-    public async Task<OrderInfoDto> GetOrderByTransactionIdAsync(string transactionId)
+    [Authorize]
+    [HttpPost]
+    /// **🔹 建立 LINE Pay 付款請求**
+    public async Task<string> CreatePaymentRequestAsync(LinePayRequestDto requestDto)
     {
-        using (var connection = new SqlConnection(_connectionString))
+        string nonce = Guid.NewGuid().ToString("N");
+        string requestUrl = LINE_PAY_REQUEST_URL;
+
+        var requestBody = new
         {
-            var query = @"
-            SELECT
-                O.fOrderId AS OrderId,
-                O.fBuyerId AS BuyerId,
-                O.fPaymentMethod AS PaymentMethod,
-                SUM(OD.fUnitPrice * OD.fOrderQty) AS TotalAmount
-            FROM tOrders O
-            JOIN tOrdersDetails OD ON O.fOrderId = OD.fOrderId
-            WHERE O.fOrderId = @TransactionId
-            GROUP BY O.fOrderId, O.fBuyerId, O.fPaymentMethod;";
-
-            return await connection.QueryFirstOrDefaultAsync<OrderInfoDto>(query, new { TransactionId = transactionId });
-        }
-    }
-
-    // ✅ 發送付款請求
-    public async Task<string> RequestPaymentAsync(decimal totalAmount, string currency, string orderId, List<PaymentPackage> packages, string confirmUrl, string cancelUrl)
-    {
-        var client = new RestClient($"{_baseUrl}/request");
-        var request = new RestRequest();
-        request.Method = Method.Post;
-
-        request.AddHeader("Content-Type", "application/json");
-        request.AddHeader("X-LINE-ChannelId", _channelId);
-        request.AddHeader("X-LINE-ChannelSecret", _channelSecret);
-
-        var body = new
-        {
-            amount = totalAmount,
-            currency = currency,
-            orderId = orderId,
-            packages = packages,
+            amount = requestDto.amount,
+            currency = "TWD",
+            orderId = requestDto.orderId,
+            packages = requestDto.packages,
             redirectUrls = new
             {
-                confirmUrl = confirmUrl,
-                cancelUrl = cancelUrl
+                confirmUrl = $"{FRONTEND_BASE_URL}",
+                cancelUrl = "https://28e9-1-160-19-244.ngrok-free.app/products/cart"
             }
         };
 
-        request.AddJsonBody(body);
-        var response = await client.ExecuteAsync(request);
+        string json = JsonSerializer.Serialize(requestBody, new JsonSerializerOptions { PropertyNamingPolicy = JsonNamingPolicy.CamelCase });
+        string signature = GenerateHmacSHA256(CHANNEL_SECRET + requestUrl + json + nonce, CHANNEL_SECRET);
 
-        Console.WriteLine("發送的請求：" + JsonConvert.SerializeObject(body, Formatting.Indented));
-        Console.WriteLine("LINE Pay API 回應：" + response.Content);
-
-        return response.Content ?? "{}";
-    }
-
-    // ✅ 確認付款狀態
-    public async Task<string> ConfirmPaymentAsync(string transactionId, decimal amount, string currency)
-    {
-        var client = new RestClient($"{_baseUrl}/{transactionId}/confirm");
-        var request = new RestRequest();
-        request.Method = Method.Post;
-
-        request.AddHeader("Content-Type", "application/json");
-        request.AddHeader("X-LINE-ChannelId", _channelId);
-        request.AddHeader("X-LINE-ChannelSecret", _channelSecret);
-
-        var body = new
+        var requestMessage = new HttpRequestMessage(HttpMethod.Post, $"{LINE_PAY_BASE_URL}{requestUrl}")
         {
-            amount = amount,
-            currency = currency
+            Content = new StringContent(json, Encoding.UTF8, "application/json")
         };
 
-        request.AddJsonBody(body);
-        var response = await client.ExecuteAsync(request);
+        // 設定 Header
+        requestMessage.Headers.Add("X-LINE-Authorization", signature);
+        requestMessage.Headers.Add("X-LINE-Authorization-Nonce", nonce);
+        requestMessage.Headers.Add("X-LINE-ChannelId", CHANNEL_ID);
 
-        Console.WriteLine("確認付款請求：" + JsonConvert.SerializeObject(body, Formatting.Indented));
-        Console.WriteLine("LINE Pay 確認付款 API 回應：" + response.Content);
+        var response = await _httpClient.SendAsync(requestMessage);
+        var responseString = await response.Content.ReadAsStringAsync();
 
-        if (!response.IsSuccessful)
+        Console.WriteLine($"📌 LINE Pay API Response: {responseString}");
+
+        using var doc = JsonDocument.Parse(responseString);
+        if (!doc.RootElement.TryGetProperty("info", out JsonElement info))
         {
-            throw new Exception($"LINE Pay 確認付款失敗: {response.StatusCode} - {response.ErrorMessage}");
+            throw new Exception($"LINE Pay 回應錯誤: {responseString}");
         }
 
-        return response.Content ?? "{}";
+        return info.GetProperty("paymentUrl").GetProperty("web").GetString();
+    }
+
+    /// **🔹 確認 LINE Pay 付款**
+    public async Task<bool> ConfirmPaymentAsync(string transactionId, decimal amount)
+    {
+        string nonce = Guid.NewGuid().ToString("N");
+        string requestUrl = string.Format(LINE_PAY_CONFIRM_URL, transactionId);
+
+        var requestBody = new
+        {
+            amount = amount,
+            currency = "TWD"
+        };
+
+        string json = JsonSerializer.Serialize(requestBody, new JsonSerializerOptions { PropertyNamingPolicy = JsonNamingPolicy.CamelCase });
+        string signature = GenerateHmacSHA256(CHANNEL_SECRET + requestUrl + json + nonce, CHANNEL_SECRET);
+
+        var requestMessage = new HttpRequestMessage(HttpMethod.Post, $"{LINE_PAY_BASE_URL}{requestUrl}")
+        {
+            Content = new StringContent(json, Encoding.UTF8, "application/json")
+        };
+
+        // 設定 Header
+        requestMessage.Headers.Add("X-LINE-Authorization", signature);
+        requestMessage.Headers.Add("X-LINE-Authorization-Nonce", nonce);
+        requestMessage.Headers.Add("X-LINE-ChannelId", CHANNEL_ID);
+
+        var response = await _httpClient.SendAsync(requestMessage);
+        var responseString = await response.Content.ReadAsStringAsync();
+
+        Console.WriteLine($"📌 LINE Pay Confirm Response: {responseString}");
+
+        return response.IsSuccessStatusCode;
     }
 }
 
-// ✅ 訂單資訊 DTO
-public class OrderInfoDto
-{
-    public string OrderId { get; set; }
-    public int BuyerId { get; set; }
-    public string PaymentMethod { get; set; }
-    public decimal TotalAmount { get; set; }
-}
 
-// ✅ 付款請求所需的商品包裝
-public class PaymentPackage
-{
-    public string id { get; set; }
-    public decimal amount { get; set; }
-    public string name { get; set; }
-    public List<PaymentProduct> products { get; set; }
-}
 
-// ✅ 單個商品資訊
-public class PaymentProduct
-{
-    public string id { get; set; }
-    public string name { get; set; }
-    public string imageUrl { get; set; }
-    public int quantity { get; set; }
-    public decimal price { get; set; }
-}
+

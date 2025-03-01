@@ -27,7 +27,14 @@ namespace prjGroupB.Controllers
         [HttpGet("GetTPostLikeCount/{id}")]
         public int GetTPostLikeCount(int id)
         {
-            return _context.TPostLikes.Where(e=>e.FPostId==id).Count();
+            try
+            {
+                return _context.TPostLikes.Where(e => e.FPostId == id).Count();
+            }
+            catch (Exception ex) {
+                Console.WriteLine($"取得文章按讚數失敗: {ex.Message}");
+                return 0;
+            }
         }
 
         // GET: api/TPostLikes/5
@@ -35,16 +42,23 @@ namespace prjGroupB.Controllers
         [Authorize]
         public async Task<TPostLikesDTO?> GetTPostLike(int id)
         {
-            int userId = int.Parse(User.FindFirstValue(ClaimTypes.NameIdentifier));
-            return _context.TPostLikes
-                .Where(e => e.FPostId == id && e.FUserId == userId)
-                .Select(e => new TPostLikesDTO
-                {
-                    FLikeId = e.FLikeId,
-                    FUserId = e.FUserId,
-                    FPostId = e.FPostId
-                })
-                .FirstOrDefault();
+            try
+            {
+                int userId = int.Parse(User.FindFirstValue(ClaimTypes.NameIdentifier));
+                return _context.TPostLikes
+                    .Where(e => e.FPostId == id && e.FUserId == userId)
+                    .Select(e => new TPostLikesDTO
+                    {
+                        FLikeId = e.FLikeId,
+                        FUserId = e.FUserId,
+                        FPostId = e.FPostId
+                    })
+                    .FirstOrDefault();
+            }
+            catch (Exception ex) {
+                Console.WriteLine($"取得個人文章按讚紀錄失敗: {ex.Message}");
+                return new TPostLikesDTO();
+            }
         }
 
         // POST: api/TPostLikes
@@ -53,16 +67,24 @@ namespace prjGroupB.Controllers
         [Authorize]
         public async Task<TPostLikesDTO> PostTPostLike(TPostLikesDTO likeDTO)
         {
-            int userId = int.Parse(User.FindFirstValue(ClaimTypes.NameIdentifier));
-            TPostLike like = new TPostLike
+            try
             {
-                FUserId = userId,
-                FPostId = likeDTO.FPostId
-            };
-            _context.TPostLikes.Add(like);
-            await _context.SaveChangesAsync();
-            likeDTO.FLikeId = like.FLikeId;
-            return likeDTO;
+                int userId = int.Parse(User.FindFirstValue(ClaimTypes.NameIdentifier));
+                TPostLike like = new TPostLike
+                {
+                    FUserId = userId,
+                    FPostId = likeDTO.FPostId
+                };
+                _context.TPostLikes.Add(like);
+                await _context.SaveChangesAsync();
+                likeDTO.FLikeId = like.FLikeId;
+                return likeDTO;
+            }
+            catch (Exception ex)
+            {
+                Console.WriteLine($"新增按讚紀錄失敗: {ex.Message}");
+                return new TPostLikesDTO();
+            }
         }
 
         // DELETE: api/TPostLikes/5
@@ -70,26 +92,34 @@ namespace prjGroupB.Controllers
         [Authorize]
         public async Task<IActionResult> DeleteTPostLike(int id)
         {
-            int userId = int.Parse(User.FindFirstValue(ClaimTypes.NameIdentifier));
-            TPostLike like = await _context.TPostLikes.FindAsync(id);
-            if (like == null)
-            {
-                return NotFound(new { message = "查無喜歡紀錄" });
-            }
-            if (like.FUserId != userId)
-            {
-                return Unauthorized(new { message = "你沒有權限刪除此喜歡紀錄" });
-            }
             try
             {
-                _context.TPostLikes.Remove(like);
-                await _context.SaveChangesAsync();
+                int userId = int.Parse(User.FindFirstValue(ClaimTypes.NameIdentifier));
+                TPostLike like = await _context.TPostLikes.FindAsync(id);
+                if (like == null)
+                {
+                    return NotFound(new { message = "查無喜歡紀錄" });
+                }
+                if (like.FUserId != userId)
+                {
+                    return Unauthorized(new { message = "你沒有權限刪除此喜歡紀錄" });
+                }
+                try
+                {
+                    _context.TPostLikes.Remove(like);
+                    await _context.SaveChangesAsync();
+                }
+                catch (DbUpdateException ex)
+                {
+                    return StatusCode(500, new { message = "刪除資料庫失敗" });
+                }
+                return Ok(new { message = "刪除喜歡紀錄成功" });
             }
-            catch (DbUpdateException ex)
+            catch (Exception ex)
             {
-                return StatusCode(500, new { message = "刪除資料庫失敗" });
+                Console.WriteLine($"刪除按讚紀錄失敗: {ex.Message}");
+                return Ok(new { message = $"刪除按讚紀錄失敗: {ex.Message}" });
             }
-            return Ok(new { message = "刪除喜歡紀錄成功" });
         }
 
     }
