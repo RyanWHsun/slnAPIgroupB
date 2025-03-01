@@ -1,11 +1,11 @@
-﻿using System;
+using System;
 using System.Collections.Generic;
+using System.Data.Common;
 using System.Linq;
 using System.Threading.Tasks;
 using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
-using Microsoft.EntityFrameworkCore.Metadata.Conventions;
 using prjGroupB.DTO;
 using prjGroupB.Models;
 
@@ -19,97 +19,43 @@ namespace prjGroupB.Controllers {
             _context = context;
         }
 
-        // GET: api/TAttractionRecommendations
-        //[HttpGet]
-        //public async Task<ActionResult<IEnumerable<TAttractionRecommendation>>> GetTAttractionRecommendations()
-        //{
-        //    return await _context.TAttractionRecommendations.ToListAsync();
-        //}
-
         // GET: api/TAttractionRecommendations/5
         // id is attraction id
         // 取得跟此景點有關的所有推薦景點
+        // 例如：id=1 的景點，會推薦 id=2, id=3 的景點
         [HttpGet("{id}")]
-        public async Task<IEnumerable<TAttractionRecommendationDTO>> GetTAttractionRecommendation(int id) {
-            var tAttractionRecommendations = await _context.TAttractionRecommendations
-                .Include(recommend => recommend.FAttraction)
-                .Include(recommend => recommend.FRecommendation)
-                .Where(recommend => recommend.FAttractionId == id)
-                .ToListAsync();
+        public async Task<ActionResult<IEnumerable<TAttractionRecommendationDTO>>> GetTAttractionRecommendation(int id) {
+            try {
+                var tAttractionRecommendations = await _context.TAttractionRecommendations
+                    .Include(recommend => recommend.FAttraction)
+                    .Include(recommend => recommend.FRecommendation)
+                    .Where(recommend => recommend.FAttractionId == id)
+                    .ToListAsync();
 
-            if (tAttractionRecommendations == null) {
-                return null;
+                if (tAttractionRecommendations == null || !tAttractionRecommendations.Any()) {
+                    return NotFound(new { error = "找不到相關推薦景點" });
+                }
+
+                var tAttractionRecommendationDTOs = tAttractionRecommendations.Select(recommend => new TAttractionRecommendationDTO {
+                    FAttractionRecommendationId = recommend.FAttractionRecommendationId,
+                    FAttractionId = recommend.FAttractionId,
+                    FAttractionName = recommend.FAttraction.FAttractionName,
+                    FRecommendationId = recommend.FRecommendationId,
+                    FRecommendAttractionName = recommend.FRecommendation.FAttractionName,
+                    FReason = recommend.FReason
+                }).ToList();
+
+                return Ok(tAttractionRecommendationDTOs);
             }
-
-            var tAttractionRecommendationDTOs = tAttractionRecommendations.Select(recommend => new TAttractionRecommendationDTO {
-                FAttractionRecommendationId = recommend.FAttractionRecommendationId,
-                FAttractionId = recommend.FAttractionId,
-                FAttractionName = recommend.FAttraction.FAttractionName,
-                FRecommendationId = recommend.FRecommendationId,
-                FRecommendAttractionName = recommend.FRecommendation.FAttractionName,
-                FReason = recommend.FReason
-            });
-
-            return tAttractionRecommendationDTOs;
+            catch (DbException ex) {
+                // 資料庫連線錯誤
+                return StatusCode(500, new { error = "資料庫連線錯誤", details = ex.Message });
+            }
+            catch (Exception ex) {
+                // 一般錯誤
+                return StatusCode(500, new { error = "內部錯誤", details = ex.Message });
+            }
         }
-
-        // PUT: api/TAttractionRecommendations/5
-        // To protect from overposting attacks, see https://go.microsoft.com/fwlink/?linkid=2123754
-        //[HttpPut("{id}")]
-        //public async Task<IActionResult> PutTAttractionRecommendation(int id, TAttractionRecommendation tAttractionRecommendation)
-        //{
-        //    if (id != tAttractionRecommendation.FAttractionRecommendationId)
-        //    {
-        //        return BadRequest();
-        //    }
-
-        //    _context.Entry(tAttractionRecommendation).State = EntityState.Modified;
-
-        //    try
-        //    {
-        //        await _context.SaveChangesAsync();
-        //    }
-        //    catch (DbUpdateConcurrencyException)
-        //    {
-        //        if (!TAttractionRecommendationExists(id))
-        //        {
-        //            return NotFound();
-        //        }
-        //        else
-        //        {
-        //            throw;
-        //        }
-        //    }
-
-        //    return NoContent();
-        //}
-
-        // POST: api/TAttractionRecommendations
-        // To protect from overposting attacks, see https://go.microsoft.com/fwlink/?linkid=2123754
-        //[HttpPost]
-        //public async Task<ActionResult<TAttractionRecommendation>> PostTAttractionRecommendation(TAttractionRecommendation tAttractionRecommendation)
-        //{
-        //    _context.TAttractionRecommendations.Add(tAttractionRecommendation);
-        //    await _context.SaveChangesAsync();
-
-        //    return CreatedAtAction("GetTAttractionRecommendation", new { id = tAttractionRecommendation.FAttractionRecommendationId }, tAttractionRecommendation);
-        //}
-
-        // DELETE: api/TAttractionRecommendations/5
-        //[HttpDelete("{id}")]
-        //public async Task<IActionResult> DeleteTAttractionRecommendation(int id)
-        //{
-        //    var tAttractionRecommendation = await _context.TAttractionRecommendations.FindAsync(id);
-        //    if (tAttractionRecommendation == null)
-        //    {
-        //        return NotFound();
-        //    }
-
-        //    _context.TAttractionRecommendations.Remove(tAttractionRecommendation);
-        //    await _context.SaveChangesAsync();
-
-        //    return NoContent();
-        //}
 
         private bool TAttractionRecommendationExists(int id) {
             return _context.TAttractionRecommendations.Any(e => e.FAttractionRecommendationId == id);
