@@ -7,7 +7,15 @@ namespace prjGroupB.Hubs
     {
         public string GetUserId(HubConnectionContext connection)
         {
-            return connection.User?.FindFirst(ClaimTypes.NameIdentifier)?.Value;
+            try
+            {
+                return connection.User?.FindFirst(ClaimTypes.NameIdentifier)?.Value;
+            }
+            catch (Exception ex) {
+                Console.WriteLine($"signalR記錄連線者資訊失敗: {ex.Message}");
+                return "0";
+            }
+
         }
     }
 }
