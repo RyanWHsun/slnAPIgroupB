@@ -31,83 +31,107 @@ namespace prjGroupB.Controllers
         [HttpGet("{id}")]
         public async Task<IEnumerable<TPostCommentsDTO>> GetTPostComment(int id)
         {
-            TPost post = await _context.TPosts.FindAsync(id);
-            return _context.TPostComments
-                .Where(c => c.FPostId == id)
-                .OrderByDescending(t => t.FCreatedAt)
-                .Include(e=>e.FUser)
-                .Select(e => new TPostCommentsDTO{
-                    FCommentId = e.FCommentId,
-                    FPostId = e.FPostId,
-                    FUserId = e.FUser.FUserId,
-                    FUserName = e.FUser.FUserName,
-                    FUserNickName = e.FUser.FUserNickName,
-                    FUserImage = Convert.ToBase64String(e.FUser.FUserImage),
-                    FContent = e.FContent,
-                    FCreatedAt = e.FCreatedAt,
-                    FUpdatedAt = e.FUpdatedAt,
-                    FParentCommentId = e.FParentCommentId
-                });
+            try
+            {
+                TPost post = await _context.TPosts.FindAsync(id);
+                return _context.TPostComments
+                    .Where(c => c.FPostId == id)
+                    .OrderByDescending(t => t.FCreatedAt)
+                    .Include(e => e.FUser)
+                    .Select(e => new TPostCommentsDTO
+                    {
+                        FCommentId = e.FCommentId,
+                        FPostId = e.FPostId,
+                        FUserId = e.FUser.FUserId,
+                        FUserName = e.FUser.FUserName,
+                        FUserNickName = e.FUser.FUserNickName,
+                        FUserImage = Convert.ToBase64String(e.FUser.FUserImage),
+                        FContent = e.FContent,
+                        FCreatedAt = e.FCreatedAt,
+                        FUpdatedAt = e.FUpdatedAt,
+                        FParentCommentId = e.FParentCommentId
+                    });
+            }
+            catch (Exception ex) {
+                Console.WriteLine($"取得文章留言失敗: {ex.Message}");
+                return new List<TPostCommentsDTO>();
+            }
         }
         // GET: api/TPostComments/GetTPostCommentCount/5
         [HttpGet("GetTPostCommentCount/{id}")]
         public int GetTPostCommentCount(int id)
         {
-            return _context.TPostComments.Where(e => e.FPostId == id).Count();
+            try
+            {
+                return _context.TPostComments.Where(e => e.FPostId == id).Count();
+            }
+            catch (Exception ex)
+            {
+                Console.WriteLine($"取得文章留言數失敗: {ex.Message}");
+                return 0;
+            }
         }
 
         // PUT: api/TPostComments/5
-        [HttpPut("{id}")]
-        [Authorize]
-        public async Task<string> PutTPostComment(int id, TPostCommentsDTO PostCommentsDTO)
-        {
-            int userId = int.Parse(User.FindFirstValue(ClaimTypes.NameIdentifier));
-            TPostComment comment = await _context.TPostComments.FindAsync(id);
-            if (comment == null)
-            {
-                return "查無留言";
-            }
-            if (comment.FUserId != userId)
-            {
-                return "你沒有權限修改此留言";
-            }
-            comment.FContent = PostCommentsDTO.FContent;
-            comment.FUpdatedAt = DateTime.Now;
-            try
-            {
-                _context.TPostComments.Update(comment);
-                await _context.SaveChangesAsync();
-            }
-            catch (DbUpdateException ex)
-            {
-                return "修改資料庫失敗";
-            }
-            return "修改留言成功";
-        }
+        //[HttpPut("{id}")]
+        //[Authorize]
+        //public async Task<string> PutTPostComment(int id, TPostCommentsDTO PostCommentsDTO)
+        //{
+        //    int userId = int.Parse(User.FindFirstValue(ClaimTypes.NameIdentifier));
+        //    TPostComment comment = await _context.TPostComments.FindAsync(id);
+        //    if (comment == null)
+        //    {
+        //        return "查無留言";
+        //    }
+        //    if (comment.FUserId != userId)
+        //    {
+        //        return "你沒有權限修改此留言";
+        //    }
+        //    comment.FContent = PostCommentsDTO.FContent;
+        //    comment.FUpdatedAt = DateTime.Now;
+        //    try
+        //    {
+        //        _context.TPostComments.Update(comment);
+        //        await _context.SaveChangesAsync();
+        //    }
+        //    catch (DbUpdateException ex)
+        //    {
+        //        return "修改資料庫失敗";
+        //    }
+        //    return "修改留言成功";
+
+        //}
 
         // POST: api/TPostComments/
         [HttpPost]
         [Authorize]
         public async Task<TPostCommentsDTO> PostTPostComment(TPostCommentsDTO PostCommentsDTO)
         {
-            int userId = int.Parse(User.FindFirstValue(ClaimTypes.NameIdentifier));
-            TPostComment comment = new TPostComment
+            try
             {
-                FPostId = PostCommentsDTO.FPostId,
-                FUserId = userId,
-                FContent = PostCommentsDTO.FContent,
-                FCreatedAt = DateTime.Now,
-                FParentCommentId = null
-            };
-            _context.TPostComments.Add(comment);
-            await _context.SaveChangesAsync();
-            PostCommentsDTO.FCommentId = comment.FCommentId;
-            PostCommentsDTO.FUserId = userId;
-            var queryUser = _context.TUsers.FirstOrDefault(e => e.FUserId == userId);
-            PostCommentsDTO.FUserImage = Convert.ToBase64String(queryUser.FUserImage);
-            PostCommentsDTO.FUserNickName = queryUser.FUserNickName;
-            await _hubContext.Clients.All.SendAsync("ReceiveMessage", PostCommentsDTO);
-            return PostCommentsDTO;
+                int userId = int.Parse(User.FindFirstValue(ClaimTypes.NameIdentifier));
+                TPostComment comment = new TPostComment
+                {
+                    FPostId = PostCommentsDTO.FPostId,
+                    FUserId = userId,
+                    FContent = PostCommentsDTO.FContent,
+                    FCreatedAt = DateTime.Now,
+                    FParentCommentId = null
+                };
+                _context.TPostComments.Add(comment);
+                await _context.SaveChangesAsync();
+                PostCommentsDTO.FCommentId = comment.FCommentId;
+                PostCommentsDTO.FUserId = userId;
+                var queryUser = _context.TUsers.FirstOrDefault(e => e.FUserId == userId);
+                PostCommentsDTO.FUserImage = Convert.ToBase64String(queryUser.FUserImage);
+                PostCommentsDTO.FUserNickName = queryUser.FUserNickName;
+                await _hubContext.Clients.All.SendAsync("ReceiveMessage", PostCommentsDTO);
+                return PostCommentsDTO;
+            }
+            catch (Exception ex) {
+                Console.WriteLine($"新增文章留言失敗: {ex.Message}");
+                return new TPostCommentsDTO();
+            }
         }
 
         // DELETE: api/TPostComments/5
@@ -115,26 +139,33 @@ namespace prjGroupB.Controllers
         [Authorize]
         public async Task<IActionResult> DeleteTPostComment(int id)
         {
-            int userId = int.Parse(User.FindFirstValue(ClaimTypes.NameIdentifier));
-            TPostComment comment = await _context.TPostComments.FindAsync(id);
-            if (comment == null)
-            {
-                return NotFound(new { message = "查無留言" });
-            }
-            if (comment.FUserId != userId)
-            {
-                return Unauthorized(new { message = "你沒有權限刪除此留言" });
-            }
             try
             {
-                _context.TPostComments.Remove(comment);
-                await _context.SaveChangesAsync();
+                int userId = int.Parse(User.FindFirstValue(ClaimTypes.NameIdentifier));
+                TPostComment comment = await _context.TPostComments.FindAsync(id);
+                if (comment == null)
+                {
+                    return NotFound(new { message = "查無留言" });
+                }
+                if (comment.FUserId != userId)
+                {
+                    return Unauthorized(new { message = "你沒有權限刪除此留言" });
+                }
+                try
+                {
+                    _context.TPostComments.Remove(comment);
+                    await _context.SaveChangesAsync();
+                }
+                catch (DbUpdateException ex)
+                {
+                    return StatusCode(500, new { message = "刪除資料庫失敗" });
+                }
+                return Ok(new { message = "刪除留言成功" });
             }
-            catch (DbUpdateException ex)
-            {
-                return StatusCode(500, new { message = "刪除資料庫失敗" });
+            catch (Exception ex) {
+                Console.WriteLine($"刪除文章留言失敗: {ex.Message}");
+                return Ok(new { message = $"刪除文章留言失敗: {ex.Message}" });
             }
-            return Ok(new { message = "刪除留言成功" });
         }
     }
 }
