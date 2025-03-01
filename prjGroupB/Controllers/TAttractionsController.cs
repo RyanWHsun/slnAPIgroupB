@@ -11,27 +11,22 @@ using Microsoft.EntityFrameworkCore;
 using prjGroupB.DTO;
 using prjGroupB.Models;
 
-namespace prjGroupB.Controllers
-{
+namespace prjGroupB.Controllers {
     // route: api/TAttractions
     [Route("api/[controller]")]
     [ApiController]
-    public class TAttractionsController : ControllerBase
-    {
+    public class TAttractionsController : ControllerBase {
         private readonly dbGroupBContext _context;
 
-        public TAttractionsController(dbGroupBContext context)
-        {
+        public TAttractionsController(dbGroupBContext context) {
             _context = context;
         }
 
         // GET: api/TAttractions
         [HttpGet]
-        public async Task<IEnumerable<TAttractionDTO>> GetTAttractions()
-        {
+        public async Task<IEnumerable<TAttractionDTO>> GetTAttractions() {
             var attractionDTOs = await _context.TAttractions.Select(
-                    attraction => new TAttractionDTO
-                    {
+                    attraction => new TAttractionDTO {
                         FAttractionId = attraction.FAttractionId,
                         FAttractionName = attraction.FAttractionName,
                         FCategoryId = attraction.FCategoryId,
@@ -56,18 +51,15 @@ namespace prjGroupB.Controllers
 
         // GET: api/TAttractions/5
         [HttpGet("{id}")]
-        public async Task<TAttractionDTO> GetTAttraction(int id)
-        {
+        public async Task<TAttractionDTO> GetTAttraction(int id) {
             var attraction = await _context.TAttractions.Include(t => t.FCategory).FirstOrDefaultAsync(t => t.FAttractionId == id);
             TAttractionDTO attractionDTO = null;
 
-            if (attraction == null)
-            {
+            if (attraction == null) {
                 return null;
             }
 
-            attractionDTO = new TAttractionDTO
-            {
+            attractionDTO = new TAttractionDTO {
                 FAttractionId = attraction.FAttractionId,
                 FAttractionName = attraction.FAttractionName,
                 FCategoryId = attraction.FCategoryId,
@@ -92,8 +84,7 @@ namespace prjGroupB.Controllers
         // GET: api/TAttractions/Search?keyword=A&pageSize=10&pageIndex=0
         [HttpGet]
         [Route("Search")]
-        public async Task<IEnumerable<TAttractionDTO>> GetAttractionByCondition([FromQuery] string keyword = "", [FromQuery] int pageSize = 9, [FromQuery] int pageIndex = 0)
-        {
+        public async Task<IEnumerable<TAttractionDTO>> GetAttractionByCondition([FromQuery] string keyword = "", [FromQuery] int pageSize = 9, [FromQuery] int pageIndex = 0) {
 
             // .Skip(pageSize * pageIndex):
             // 跳過 pageSize *pageIndex 筆資料。
@@ -112,14 +103,12 @@ namespace prjGroupB.Controllers
             // .Any() 是 LINQ 的一個方法，檢查集合中是否存在至少一個元素。
             // 如果集合中有資料，.Any() 會回傳 true。
             // 如果集合為空，.Any() 會回傳 false。
-            if (attractions == null || !attractions.Any())
-            {
+            if (attractions == null || !attractions.Any()) {
                 return new List<TAttractionDTO>();
             }
 
             var attractionDTOs = attractions.Select(
-                attraction => new TAttractionDTO
-                {
+                attraction => new TAttractionDTO {
                     FAttractionId = attraction.FAttractionId,
                     FAttractionName = attraction.FAttractionName,
                     FCategoryId = attraction.FCategoryId,
@@ -144,24 +133,20 @@ namespace prjGroupB.Controllers
         }
 
         [HttpGet("Count")]
-        public async Task<int> GetAttractionQuantities()
-        {
+        public async Task<int> GetAttractionQuantities() {
             return await _context.TAttractions.CountAsync();
         }
 
         // PUT: api/TAttractions/5
         // To protect from overposting attacks, see https://go.microsoft.com/fwlink/?linkid=2123754
         [HttpPut("{id}")]
-        public async Task<IActionResult> PutTAttraction(int id, TAttractionDTO attractionDTO)
-        {
-            if (id != attractionDTO.FAttractionId)
-            {
+        public async Task<IActionResult> PutTAttraction(int id, TAttractionDTO attractionDTO) {
+            if (id != attractionDTO.FAttractionId) {
                 return BadRequest("Id 不符合");
             }
 
             TAttraction attraction = await _context.TAttractions.FindAsync(id);
-            if (attraction == null)
-            {
+            if (attraction == null) {
                 return NotFound();
             }
             attraction.FAttractionName = attractionDTO.FAttractionName;
@@ -182,18 +167,14 @@ namespace prjGroupB.Controllers
 
             _context.Entry(attraction).State = EntityState.Modified;
 
-            try
-            {
+            try {
                 await _context.SaveChangesAsync();
             }
-            catch (DbUpdateConcurrencyException)
-            {
-                if (!TAttractionExists(id))
-                {
+            catch (DbUpdateConcurrencyException) {
+                if (!TAttractionExists(id)) {
                     return NotFound();
                 }
-                else
-                {
+                else {
                     throw;
                 }
             }
@@ -204,10 +185,8 @@ namespace prjGroupB.Controllers
         // POST: api/TAttractions
         // To protect from overposting attacks, see https://go.microsoft.com/fwlink/?linkid=2123754
         [HttpPost]
-        public async Task<TAttractionDTO> PostTAttraction(TAttractionDTO attractionDTO)
-        {
-            TAttraction attraction = new TAttraction
-            {
+        public async Task<TAttractionDTO> PostTAttraction(TAttractionDTO attractionDTO) {
+            TAttraction attraction = new TAttraction {
                 // Id 是資料庫自動產生的，這裡先預設為 0
                 FAttractionId = 0,
                 FAttractionName = attractionDTO.FAttractionName,
@@ -240,11 +219,9 @@ namespace prjGroupB.Controllers
 
         // DELETE: api/TAttractions/5
         [HttpDelete("{id}")]
-        public async Task<IActionResult> DeleteTAttraction(int id)
-        {
+        public async Task<IActionResult> DeleteTAttraction(int id) {
             var tAttraction = await _context.TAttractions.FindAsync(id);
-            if (tAttraction == null)
-            {
+            if (tAttraction == null) {
                 return NotFound();
             }
 
@@ -254,8 +231,7 @@ namespace prjGroupB.Controllers
             return NoContent();
         }
 
-        private bool TAttractionExists(int id)
-        {
+        private bool TAttractionExists(int id) {
             return _context.TAttractions.Any(e => e.FAttractionId == id);
         }
     }

@@ -9,35 +9,28 @@ using Microsoft.EntityFrameworkCore;
 using prjGroupB.DTO;
 using prjGroupB.Models;
 
-namespace prjGroupB.Controllers
-{
+namespace prjGroupB.Controllers {
     [Route("api/[controller]")]
     [ApiController]
-    public class TAttractionCategoriesController : ControllerBase
-    {
+    public class TAttractionCategoriesController : ControllerBase {
         private readonly dbGroupBContext _context;
 
-        public TAttractionCategoriesController(dbGroupBContext context)
-        {
+        public TAttractionCategoriesController(dbGroupBContext context) {
             _context = context;
         }
 
         // GET: api/TAttractionCategories
         [HttpGet]
-        public async Task<ActionResult<IEnumerable<TAttractionCategoryDTO>>> GetTAttractionCategories()
-        {
-            try
-            {
+        public async Task<ActionResult<IEnumerable<TAttractionCategoryDTO>>> GetTAttractionCategories() {
+            try {
                 var categorieDTOs = await _context.TAttractionCategories.Select(
-                    data => new TAttractionCategoryDTO
-                    {
+                    data => new TAttractionCategoryDTO {
                         FAttractionCategoryId = data.FAttractionCategoryId,
                         FAttractionCategoryName = data.FAttractionCategoryName
                     }
                 ).ToListAsync();
 
-                if (categorieDTOs == null || !categorieDTOs.Any())
-                {
+                if (categorieDTOs == null || !categorieDTOs.Any()) {
                     return NotFound(new { error = "找不到任何景點分類" });
                 }
 
@@ -47,8 +40,7 @@ namespace prjGroupB.Controllers
             {
                 return StatusCode(500, new { error = "資料庫連線錯誤", details = ex.Message });
             }
-            catch (Exception ex)
-            {
+            catch (Exception ex) {
                 return StatusCode(500, new { error = "內部錯誤", details = ex.Message });
             }
         }
@@ -56,19 +48,15 @@ namespace prjGroupB.Controllers
         // GET: api/TAttractionCategories/5
         // id is CategoryId
         [HttpGet("{id}")]
-        public async Task<ActionResult<TAttractionCategoryDTO>> GetTAttractionCategory(int id)
-        {
-            try
-            {
+        public async Task<ActionResult<TAttractionCategoryDTO>> GetTAttractionCategory(int id) {
+            try {
                 var tAttractionCategory = await _context.TAttractionCategories.FindAsync(id);
 
-                if (tAttractionCategory == null)
-                {
+                if (tAttractionCategory == null) {
                     return NotFound(new { error = $"找不到ID為 {id} 的景點分類" });
                 }
 
-                TAttractionCategoryDTO categoryDTO = new TAttractionCategoryDTO
-                {
+                TAttractionCategoryDTO categoryDTO = new TAttractionCategoryDTO {
                     FAttractionCategoryId = tAttractionCategory.FAttractionCategoryId,
                     FAttractionCategoryName = tAttractionCategory.FAttractionCategoryName
                 };
@@ -79,8 +67,7 @@ namespace prjGroupB.Controllers
             {
                 return StatusCode(500, new { error = "資料庫連線錯誤", details = ex.Message });
             }
-            catch (Exception ex)
-            {
+            catch (Exception ex) {
                 return StatusCode(500, new { error = "內部錯誤", details = ex.Message });
             }
         }

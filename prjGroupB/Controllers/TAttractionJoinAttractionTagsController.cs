@@ -9,40 +9,33 @@ using Microsoft.EntityFrameworkCore;
 using prjGroupB.DTO;
 using prjGroupB.Models;
 
-namespace prjGroupB.Controllers
-{
+namespace prjGroupB.Controllers {
     [Route("api/[controller]")]
     [ApiController]
-    public class TAttractionJoinAttractionTagsController : ControllerBase
-    {
+    public class TAttractionJoinAttractionTagsController : ControllerBase {
         private readonly dbGroupBContext _context;
 
-        public TAttractionJoinAttractionTagsController(dbGroupBContext context)
-        {
+        public TAttractionJoinAttractionTagsController(dbGroupBContext context) {
             _context = context;
         }
 
         // GET: api/TAttractionJoinAttractionTags/5
         // id is the AttractionId
         [HttpGet("{id}")]
-        public async Task<ActionResult<IEnumerable<TAttractionJoinAttractionTagDTO>>> GetTAttractionJoinAttractionTag(int id)
-        {
-            try
-            {
+        public async Task<ActionResult<IEnumerable<TAttractionJoinAttractionTagDTO>>> GetTAttractionJoinAttractionTag(int id) {
+            try {
                 var tAttractionJoinAttractionTags = await _context.TAttractionJoinAttractionTags
                     .Include(tag => tag.FAttraction)
                     .Include(tag => tag.FTag)
                     .Where(tag => tag.FAttractionId == id)
                     .ToListAsync();
 
-                if (tAttractionJoinAttractionTags == null || !tAttractionJoinAttractionTags.Any())
-                {
+                if (tAttractionJoinAttractionTags == null || !tAttractionJoinAttractionTags.Any()) {
                     return NotFound(new { error = "找不到相關標籤" });
                 }
 
                 var tagDTOs = tAttractionJoinAttractionTags
-                    .Select(tag => new TAttractionJoinAttractionTagDTO
-                    {
+                    .Select(tag => new TAttractionJoinAttractionTagDTO {
                         FTagId = tag.FTagId,
                         FTagName = tag.FTag.FTagName,
                         FAttractionId = tag.FAttractionId,
@@ -51,20 +44,17 @@ namespace prjGroupB.Controllers
 
                 return Ok(tagDTOs);
             }
-            catch (DbException ex)
-            {
+            catch (DbException ex) {
                 // 資料庫連線錯誤
                 return StatusCode(500, new { error = "資料庫連線錯誤", details = ex.Message });
             }
-            catch (Exception ex)
-            {
+            catch (Exception ex) {
                 // 一般錯誤
                 return StatusCode(500, new { error = "內部錯誤", details = ex.Message });
             }
         }
 
-        private bool TAttractionJoinAttractionTagExists(int id)
-        {
+        private bool TAttractionJoinAttractionTagExists(int id) {
             return _context.TAttractionJoinAttractionTags.Any(e => e.FAttractionJoinAttractionTagId == id);
         }
     }

@@ -4,32 +4,26 @@ using System.Net.Http;
 using System.Text.Json;
 using static System.Net.WebRequestMethods;
 
-namespace prjGroupB.Controllers
-{
+namespace prjGroupB.Controllers {
     [Route("api/[controller]")]
     [ApiController]
-    public class OpenWeatherAPIController : ControllerBase
-    {
+    public class OpenWeatherAPIController : ControllerBase {
         private readonly IConfiguration _config;
         private readonly HttpClient _client;
 
-        public OpenWeatherAPIController(IConfiguration config, HttpClient client)
-        {
+        public OpenWeatherAPIController(IConfiguration config, HttpClient client) {
             _config = config;
             _client = client;
         }
 
         // Call current weather data
         [HttpGet("CurrentWeather")]
-        public async Task<ActionResult<string>> GetCurrentWeather(float lat, float lon)
-        {
-            try
-            {
+        public async Task<ActionResult<string>> GetCurrentWeather(float lat, float lon) {
+            try {
                 var apiKey = EnvironmentConfig.GetValue("OpenWeather", "ApiKey");
                 //string apiKey = _config["OpenWeather:ApiKey"];
 
-                if (apiKey == null || apiKey == "")
-                {
+                if (apiKey == null || apiKey == "") {
                     return BadRequest("API Key 未設定");
                 }
 
@@ -39,8 +33,7 @@ namespace prjGroupB.Controllers
                 // GetAsync() 會回傳 HttpResponseMessage 物件，其中包含 HTTP 回應的 狀態碼、標頭和內容。
                 HttpResponseMessage response = await _client.GetAsync(requestUrl);
 
-                if (!response.IsSuccessStatusCode)
-                {
+                if (!response.IsSuccessStatusCode) {
                     return StatusCode((int)response.StatusCode, new { error = $"OpenWeather API 回應錯誤: {response.ReasonPhrase}" });
                 }
 
@@ -49,23 +42,19 @@ namespace prjGroupB.Controllers
 
                 // 驗證 JSON 回應是否有效
                 using var jsonDoc = JsonDocument.Parse(jsonResponse);
-                if (jsonDoc.RootElement.TryGetProperty("cod", out var cod) && cod.GetInt32() != 200)
-                {
+                if (jsonDoc.RootElement.TryGetProperty("cod", out var cod) && cod.GetInt32() != 200) {
                     return BadRequest(new { error = "OpenWeather API 回應錯誤", details = jsonDoc.RootElement.GetProperty("message").GetString() });
                 }
 
                 return Ok(jsonResponse);
             }
-            catch (HttpRequestException ex)
-            {
+            catch (HttpRequestException ex) {
                 return StatusCode(500, new { error = "無法連線至 OpenWeather API", details = ex.Message });
             }
-            catch (JsonException ex)
-            {
+            catch (JsonException ex) {
                 return StatusCode(500, new { error = "回應 JSON 格式錯誤", details = ex.Message });
             }
-            catch (Exception ex)
-            {
+            catch (Exception ex) {
                 return StatusCode(500, new { error = "內部錯誤", details = ex.Message });
             }
         }
@@ -74,15 +63,12 @@ namespace prjGroupB.Controllers
         // GET: api/WeatherIcon
         // https://localhost:7112/api/OpenWeatherAPI/WeatherIcon?lat=25.070843504702268&lon=121.49929878012719
         [HttpGet("WeatherIcon")]
-        public async Task<ActionResult<string>> GetWeatherIcon(float lat, float lon)
-        {
-            try
-            {
+        public async Task<ActionResult<string>> GetWeatherIcon(float lat, float lon) {
+            try {
                 var apiKey = EnvironmentConfig.GetValue("OpenWeather", "ApiKey");
                 //string apiKey = _config["OpenWeather:ApiKey"];
 
-                if (apiKey == null || apiKey == "")
-                {
+                if (apiKey == null || apiKey == "") {
                     return BadRequest("API Key 未設定");
                 }
 
@@ -90,8 +76,7 @@ namespace prjGroupB.Controllers
                 string requestUrl = $"https://api.openweathermap.org/data/2.5/weather?lat={lat}&lon={lon}&appid={apiKey}";
                 HttpResponseMessage response = await _client.GetAsync(requestUrl);
 
-                if (!response.IsSuccessStatusCode)
-                {
+                if (!response.IsSuccessStatusCode) {
                     return StatusCode((int)response.StatusCode, new { error = $"OpenWeather API 回應錯誤: {response.ReasonPhrase}" });
                 }
 
@@ -105,20 +90,17 @@ namespace prjGroupB.Controllers
                 var root = jsonDoc.RootElement; // 取得 JSON 的根元素
 
                 // 檢查 API 回應是否包含錯誤
-                if (root.TryGetProperty("cod", out var cod) && cod.GetInt32() != 200)
-                {
+                if (root.TryGetProperty("cod", out var cod) && cod.GetInt32() != 200) {
                     return BadRequest(new { error = "OpenWeather API 回應錯誤", details = root.GetProperty("message").GetString() });
                 }
 
                 // TryGetProperty() 會嘗試從 root 取出 "weather" 屬性。
-                if (!root.TryGetProperty("weather", out var weatherArray) || weatherArray.GetArrayLength() == 0)
-                {
+                if (!root.TryGetProperty("weather", out var weatherArray) || weatherArray.GetArrayLength() == 0) {
                     return BadRequest("找不到天氣資訊");
                 }
 
                 var weatherElement = weatherArray[0];
-                if (!weatherElement.TryGetProperty("icon", out var iconElement))
-                {
+                if (!weatherElement.TryGetProperty("icon", out var iconElement)) {
                     return BadRequest("找不到天氣圖示資訊");
                 }
 
@@ -127,16 +109,13 @@ namespace prjGroupB.Controllers
 
                 return Ok(iconUrl);
             }
-            catch (HttpRequestException ex)
-            {
+            catch (HttpRequestException ex) {
                 return StatusCode(500, new { error = "無法連線至 OpenWeather API", details = ex.Message });
             }
-            catch (JsonException ex)
-            {
+            catch (JsonException ex) {
                 return StatusCode(500, new { error = "回應 JSON 格式錯誤", details = ex.Message });
             }
-            catch (Exception ex)
-            {
+            catch (Exception ex) {
                 return StatusCode(500, new { error = "內部錯誤", details = ex.Message });
             }
         }

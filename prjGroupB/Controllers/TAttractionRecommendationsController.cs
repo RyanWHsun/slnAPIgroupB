@@ -9,16 +9,13 @@ using Microsoft.EntityFrameworkCore;
 using prjGroupB.DTO;
 using prjGroupB.Models;
 
-namespace prjGroupB.Controllers
-{
+namespace prjGroupB.Controllers {
     [Route("api/[controller]")]
     [ApiController]
-    public class TAttractionRecommendationsController : ControllerBase
-    {
+    public class TAttractionRecommendationsController : ControllerBase {
         private readonly dbGroupBContext _context;
 
-        public TAttractionRecommendationsController(dbGroupBContext context)
-        {
+        public TAttractionRecommendationsController(dbGroupBContext context) {
             _context = context;
         }
 
@@ -27,23 +24,19 @@ namespace prjGroupB.Controllers
         // 取得跟此景點有關的所有推薦景點
         // 例如：id=1 的景點，會推薦 id=2, id=3 的景點
         [HttpGet("{id}")]
-        public async Task<ActionResult<IEnumerable<TAttractionRecommendationDTO>>> GetTAttractionRecommendation(int id)
-        {
-            try
-            {
+        public async Task<ActionResult<IEnumerable<TAttractionRecommendationDTO>>> GetTAttractionRecommendation(int id) {
+            try {
                 var tAttractionRecommendations = await _context.TAttractionRecommendations
                     .Include(recommend => recommend.FAttraction)
                     .Include(recommend => recommend.FRecommendation)
                     .Where(recommend => recommend.FAttractionId == id)
                     .ToListAsync();
 
-                if (tAttractionRecommendations == null || !tAttractionRecommendations.Any())
-                {
+                if (tAttractionRecommendations == null || !tAttractionRecommendations.Any()) {
                     return NotFound(new { error = "找不到相關推薦景點" });
                 }
 
-                var tAttractionRecommendationDTOs = tAttractionRecommendations.Select(recommend => new TAttractionRecommendationDTO
-                {
+                var tAttractionRecommendationDTOs = tAttractionRecommendations.Select(recommend => new TAttractionRecommendationDTO {
                     FAttractionRecommendationId = recommend.FAttractionRecommendationId,
                     FAttractionId = recommend.FAttractionId,
                     FAttractionName = recommend.FAttraction.FAttractionName,
@@ -54,20 +47,17 @@ namespace prjGroupB.Controllers
 
                 return Ok(tAttractionRecommendationDTOs);
             }
-            catch (DbException ex)
-            {
+            catch (DbException ex) {
                 // 資料庫連線錯誤
                 return StatusCode(500, new { error = "資料庫連線錯誤", details = ex.Message });
             }
-            catch (Exception ex)
-            {
+            catch (Exception ex) {
                 // 一般錯誤
                 return StatusCode(500, new { error = "內部錯誤", details = ex.Message });
             }
         }
 
-        private bool TAttractionRecommendationExists(int id)
-        {
+        private bool TAttractionRecommendationExists(int id) {
             return _context.TAttractionRecommendations.Any(e => e.FAttractionRecommendationId == id);
         }
     }
