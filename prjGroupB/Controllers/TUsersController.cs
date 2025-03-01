@@ -41,9 +41,9 @@ namespace prjGroupB.Controllers
         // GET: api/TUsers
         [HttpGet]
         [Authorize]
-        public async Task<IEnumerable<TUserDTO>> GetTUsers(int page, int pageSize, int userRank, string? search)
+        public async Task<ActionResult<TUserDTO>> GetTUsers(int page, int pageSize, int userRank, string? search)
         {
-
+            try { 
             //計算從哪一筆開始跳過
             var skip = (page - 1) * pageSize;
 
@@ -63,8 +63,6 @@ namespace prjGroupB.Controllers
                 s.FUserEmail.Contains(search));
             }
 
-
-
             var users = await finUser
                 .Skip(skip)
                 .Take(pageSize)
@@ -83,7 +81,10 @@ namespace prjGroupB.Controllers
                     FUserComeDate = (DateTime)emp.FUserComeDate
                 }).ToListAsync();
 
-            return users;
+            return Ok(users);
+            }
+            catch
+            { return BadRequest(new { message = "錯誤操作" }); }
         }
 
 
@@ -93,7 +94,7 @@ namespace prjGroupB.Controllers
         [Authorize]
         public async Task<ActionResult<TUserDTO>> GetTUser()
         {
-
+            try { 
             //尋找登入者ID
             var userId = int.Parse(User.FindFirstValue(ClaimTypes.NameIdentifier));
 
@@ -123,6 +124,9 @@ namespace prjGroupB.Controllers
                 //FUserPassword = tUser.FUserPassword
             };
             return userDTO;
+            }
+            catch
+            { return BadRequest(new { message = "錯誤操作" }); }
         }
 
 
@@ -133,6 +137,7 @@ namespace prjGroupB.Controllers
         [Authorize]
         public async Task<IActionResult> PutTUser([FromBody] TUserDTO userDTO)
         {
+            try { 
             //尋找登入者ID
             var userId = int.Parse(User.FindFirstValue(ClaimTypes.NameIdentifier));
 
@@ -177,6 +182,9 @@ namespace prjGroupB.Controllers
                 return BadRequest(new { message = "修改失敗" });
             }
             return Ok(new { message = "修改成功" });
+            }
+            catch
+            { return BadRequest(new { message = "錯誤操作" }); }
         }
 
         //修改登入者Rank
@@ -185,6 +193,7 @@ namespace prjGroupB.Controllers
         [Authorize]
         public async Task<IActionResult> PutTUserRank([FromBody] TUserDTO userDTO)
         {
+            try { 
             //尋找登入者ID
             var userId = int.Parse(User.FindFirstValue(ClaimTypes.NameIdentifier));
 
@@ -215,6 +224,9 @@ namespace prjGroupB.Controllers
                 return BadRequest(new { message = "修改失敗" });
             }
             return Ok(new { message = "修改成功" });
+            }
+            catch
+            { return BadRequest(new { message = "錯誤操作" }); }
         }
 
 
@@ -226,6 +238,7 @@ namespace prjGroupB.Controllers
         //[Authorize]
         public async Task<IActionResult> PutTUserPassword([FromBody] UserLoginRequest userDTO)
         {
+            try { 
             //尋找輸入的Email
             var userEmail = userDTO.Email;
 
@@ -258,6 +271,9 @@ namespace prjGroupB.Controllers
                 return BadRequest(new { message = "密碼修改失敗" });
             }
             return Ok(new { message = "密碼修改成功" });
+            }
+            catch
+            { return BadRequest(new { message = "錯誤操作" }); }
         }
 
 
@@ -269,6 +285,7 @@ namespace prjGroupB.Controllers
         [Authorize]
         public async Task<ActionResult<TUserDTO>> GetTUser(int id)
         {
+            try { 
 
             //尋找登入者ID
             var userId = int.Parse(User.FindFirstValue(ClaimTypes.NameIdentifier));
@@ -299,6 +316,9 @@ namespace prjGroupB.Controllers
                 //FUserPassword = tUser.FUserPassword
             };
             return userDTO;
+            }
+            catch
+            { return BadRequest(new { message = "錯誤操作" }); }
         }
 
 
@@ -309,6 +329,7 @@ namespace prjGroupB.Controllers
         [Authorize]
         public async Task<IActionResult> ranKPutTUser([FromBody] TUserDTO userDTO)
         {
+            try { 
             //尋找登入者ID
             var userId = int.Parse(User.FindFirstValue(ClaimTypes.NameIdentifier));
 
@@ -354,6 +375,9 @@ namespace prjGroupB.Controllers
                 return BadRequest(new { message = "修改失敗" });
             }
             return Ok(new { message = "修改成功" });
+            }
+            catch
+            { return BadRequest(new { message = "錯誤操作" }); }
         }
 
 
@@ -363,6 +387,7 @@ namespace prjGroupB.Controllers
         [HttpPost]
         public async Task<IActionResult> PostTUser([FromBody] TUserDTO userDTO)
         {
+            try { 
             //擋住已註冊的Email
             bool haveEmail = await _context.TUsers.AnyAsync(u => u.FUserEmail == userDTO.FUserEmail);
             if (haveEmail)
@@ -395,6 +420,9 @@ namespace prjGroupB.Controllers
             _context.TUsers.Add(user);
             await _context.SaveChangesAsync();
             return Ok(new { message = "註冊成功，會員編號:", userId = user.FUserId });
+            }
+            catch
+            { return BadRequest(new { message = "錯誤操作" }); }
         }
 
 
@@ -415,7 +443,7 @@ namespace prjGroupB.Controllers
         [HttpPost("sendEmail")]
         public async Task<IActionResult> SendEmailAsync([FromBody] EmailSendDTO emailSendDTO)
         {
-
+            try { 
             var tUserEmail = await _context.TUsers
                 .Where(p => p.FUserEmail== emailSendDTO.Email).FirstOrDefaultAsync();
 
@@ -502,19 +530,17 @@ namespace prjGroupB.Controllers
             {
                 return StatusCode(500, new { error = "發送 Email 失敗", details = ex.Message });
             }
+            }
+            catch
+            { return BadRequest(new { message = "錯誤操作" }); }
         }
-        //catch
-        //{
-        //    //return BadRequest(ex);
-        //    return BadRequest("驗證碼發送失敗");
-        //}
 
 
         //驗證驗證信
         [HttpPost("verifyEmail")]
         public IActionResult VerifyEmail([FromBody] EmailSendDTO emailSendDTO)
         {
-
+            try { 
             if (string.IsNullOrEmpty(emailSendDTO.Email))
             {
                 return BadRequest(new { message = "請提供驗證碼" });
@@ -540,6 +566,9 @@ namespace prjGroupB.Controllers
             {
                 return BadRequest(new { message = "驗證碼無效或已過期" });
             }
+            }
+            catch
+            { return BadRequest(new { message = "錯誤操作" }); }
         }
     
 
