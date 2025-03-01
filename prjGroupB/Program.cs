@@ -21,7 +21,8 @@ Console.WriteLine("🔹 ConnectionString: " + connectionString);
 // ? 註冊 ImageService
 builder.Services.AddScoped<IImageService, ImageService>();
 
-
+//註冊 MemoryCache 服務
+builder.Services.AddMemoryCache();
 
 // ? 設定資料庫連線
 builder.Services.AddDbContext<dbGroupBContext>(options =>
@@ -76,11 +77,12 @@ builder.Services.AddCors(options =>
               .AllowAnyMethod(); 
     });
 
-    options.AddPolicy("AllowQRScan", policy =>
+    options.AddPolicy("AllowWebSite", policy =>
     {
         policy.AllowAnyOrigin() // 允許所有來源
               .WithMethods("PUT") 
               .WithMethods("GET")
+              .WithMethods("POST")
               .AllowAnyHeader();
     });
 });
