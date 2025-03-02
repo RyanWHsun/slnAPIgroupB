@@ -468,7 +468,7 @@ namespace prjGroupB.Controllers
                 //存入Dictionary
                 _verificationCodes[emailSendDTO.Email] = _VerificationCode;
                 // 啟動 Task.Delay，在 60 秒後自動刪除驗證碼
-                _ = Task.Delay(TimeSpan.FromMinutes(1)).ContinueWith(_ =>
+                _ = Task.Delay(TimeSpan.FromMinutes(3)).ContinueWith(_ =>
                 {
                     _verificationCodes.Remove(emailSendDTO.Email);
                 });
@@ -501,7 +501,7 @@ namespace prjGroupB.Controllers
               </tr>
             </table>
 
-            <p style='color: red; font-size: 14px;'>此驗證碼將在 1 分鐘後過期!</p>
+            <p style='color: red; font-size: 14px;'>此驗證碼將在 3 分鐘後過期!</p>
           </td>
         </tr>
       </table>
