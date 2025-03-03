@@ -71,16 +71,19 @@ builder.Services.AddCors(options =>
 {
     options.AddPolicy(MyAllowSpecificOrigins, policy =>
     {
-        policy.WithOrigins("http://localhost:4200")
-              .AllowCredentials()// 允許攜帶 Cookie
-              .AllowAnyHeader()
-              .AllowAnyMethod(); 
+        policy.WithOrigins(
+            "http://localhost:4200", // 允許本機開發環境
+            "https://c51c-1-160-26-54.ngrok-free.app" // 允許 ngrok 代理的前端
+        )
+        .AllowCredentials() // 允許攜帶 Cookie
+        .AllowAnyHeader()
+        .AllowAnyMethod();
     });
 
     options.AddPolicy("AllowWebSite", policy =>
     {
         policy.AllowAnyOrigin() // 允許所有來源
-              .WithMethods("PUT") 
+              .WithMethods("PUT")
               .WithMethods("GET")
               .WithMethods("POST")
               .AllowAnyHeader();
@@ -149,7 +152,7 @@ if (app.Environment.IsDevelopment())
     app.UseSwaggerUI();
 }
 
-// ? 確保 CORS 設定生效
+// ? 確保 CORS 設定生效 (放在 Authentication 之前)
 app.UseCors(MyAllowSpecificOrigins);
 
 // ? 啟用 HTTPS 重新導向
@@ -158,15 +161,14 @@ app.UseHttpsRedirection();
 // ? 啟用 JWT 驗證
 app.UseAuthentication();
 app.UseAuthorization();
-//註冊SignalR Hub
-app.MapHub<ChatHub>("/chatHub");
 
 // 註冊 SignalR Hub
+app.MapHub<ChatHub>("/chatHub");
 app.MapHub<OrderHub>("/orderHub");
 
 // ? 設定路由
 app.MapControllers();
 
-
 // ? 啟動應用程式
 app.Run();
+

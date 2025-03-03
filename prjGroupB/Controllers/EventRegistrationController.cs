@@ -28,7 +28,9 @@ namespace prjGroupB.Controllers
         [HttpGet("{eventId}")]
         public async Task<ActionResult<IEnumerable<object>>> GetRegistrations(int eventId)
         {
-            var registrations = await _context.TEventRegistrationForms
+            try
+            {
+                var registrations = await _context.TEventRegistrationForms
                 .Where(r => r.FEventId == eventId)
                 .Include(r => r.FUser)
                 .Select(r => new
@@ -42,61 +44,73 @@ namespace prjGroupB.Controllers
                 })
                 .ToListAsync();
 
-            return Ok(registrations);
+                return Ok(registrations);
+            }
+            catch (Exception ex)
+            {
+                return StatusCode(500, new { message = "取得報名列表時發生錯誤", error = ex.Message });
+            }
         }
 
         // 🔹 使用者報名活動（確保 JWT Cookie 驗證）
         [HttpPost("register")]
         public async Task<IActionResult> RegisterForEvent([FromBody] TEventRegistrationForm registration)
         {
-            // ✅ 從 Cookie 取得 JWT Token
-            var token = Request.Cookies["jwt_token"];
-            if (string.IsNullOrEmpty(token))
+            try
             {
-                return Unauthorized(new { message = "請先登入" });
-            }
+                // ✅ 從 Cookie 取得 JWT Token
+                var token = Request.Cookies["jwt_token"];
+                if (string.IsNullOrEmpty(token))
+                {
+                    return Unauthorized(new { message = "請先登入" });
+                }
 
-            // ✅ 解析 JWT Token 取得 User ID
-            var userId = GetUserIdFromToken(token);
-            if (userId == null)
+                // ✅ 解析 JWT Token 取得 User ID
+                var userId = GetUserIdFromToken(token);
+                if (userId == null)
+                {
+                    return Unauthorized(new { message = "無效的登入憑證" });
+                }
+
+                // ✅ 檢查活動是否存在
+                var eventItem = await _context.TEvents.FindAsync(registration.FEventId);
+                if (eventItem == null)
+                {
+                    return NotFound(new { message = "活動不存在" });
+                }
+
+                // ✅ 檢查活動是否已達報名上限
+                int registeredCount = await _context.TEventRegistrationForms
+                    .CountAsync(r => r.FEventId == registration.FEventId);
+
+                if (eventItem.FMaxParticipants != null && registeredCount >= eventItem.FMaxParticipants)
+                {
+                    return BadRequest(new { message = "報名人數已滿，無法報名" });
+                }
+
+                // ✅ 檢查是否已報名
+                var existingRegistration = await _context.TEventRegistrationForms
+                    .FirstOrDefaultAsync(r => r.FEventId == registration.FEventId && r.FUserId == userId);
+
+                if (existingRegistration != null)
+                {
+                    return Conflict(new { message = "您已報名過此活動" });
+                }
+
+                // ✅ 設定報名資訊
+                registration.FUserId = (int)userId;
+                registration.FEregistrationDate = DateTime.UtcNow;
+                registration.FRegistrationStatus = "已報名";
+
+                _context.TEventRegistrationForms.Add(registration);
+                await _context.SaveChangesAsync();
+
+                return Ok(new { message = "報名成功" });
+            }
+            catch (Exception ex)
             {
-                return Unauthorized(new { message = "無效的登入憑證" });
+                return StatusCode(500, new { message = "報名活動時發生錯誤", error = ex.Message });
             }
-
-            // ✅ 檢查活動是否存在
-            var eventItem = await _context.TEvents.FindAsync(registration.FEventId);
-            if (eventItem == null)
-            {
-                return NotFound(new { message = "活動不存在" });
-            }
-
-            // ✅ 檢查活動是否已達報名上限
-            int registeredCount = await _context.TEventRegistrationForms
-                .CountAsync(r => r.FEventId == registration.FEventId);
-
-            if (eventItem.FMaxParticipants != null && registeredCount >= eventItem.FMaxParticipants)
-            {
-                return BadRequest(new { message = "報名人數已滿，無法報名" });
-            }
-
-            // ✅ 檢查是否已報名
-            var existingRegistration = await _context.TEventRegistrationForms
-                .FirstOrDefaultAsync(r => r.FEventId == registration.FEventId && r.FUserId == userId);
-
-            if (existingRegistration != null)
-            {
-                return Conflict(new { message = "您已報名過此活動" });
-            }
-
-            // ✅ 設定報名資訊
-            registration.FUserId = (int)userId;
-            registration.FEregistrationDate = DateTime.UtcNow;
-            registration.FRegistrationStatus = "已報名";
-
-            _context.TEventRegistrationForms.Add(registration);
-            await _context.SaveChangesAsync();
-
-            return Ok(new { message = "報名成功" });
         }
 
         // ✅ JWT 解碼方法
@@ -122,8 +136,9 @@ namespace prjGroupB.Controllers
 
                 return userIdClaim != null ? int.Parse(userIdClaim) : (int?)null;
             }
-            catch
+            catch (Exception ex)
             {
+                Console.WriteLine($"JWT 解析失敗: {ex.Message}");
                 return null;
             }
         }

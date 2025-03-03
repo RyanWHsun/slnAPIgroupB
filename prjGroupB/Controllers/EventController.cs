@@ -56,37 +56,44 @@ public class EventController : ControllerBase
     [HttpGet("{id}")]
     public async Task<ActionResult<object>> GetEvent(int id)
     {
-        var eventItem = await _context.TEvents
+        try
+        {
+            var eventItem = await _context.TEvents
             .Include(e => e.TEventLocations)
             .Include(e => e.TEventImages)
             .FirstOrDefaultAsync(e => e.FEventId == id);
 
-        if (eventItem == null)
-        {
-            return NotFound();
+            if (eventItem == null)
+            {
+                return NotFound();
+            }
+
+            var eventImage = eventItem.TEventImages.FirstOrDefault();
+            string defaultImage = "https://your-cdn.com/default-event.jpg";
+
+            var result = new
+            {
+                eventItem.FEventId,
+                eventItem.FEventName,
+                eventItem.FEventDescription,
+                eventItem.FEventStartDate,
+                eventItem.FEventEndDate,
+                FLocation = eventItem.TEventLocations.Any()
+                    ? eventItem.TEventLocations.FirstOrDefault().FLocationName
+                    : "未提供",
+                FParticipant = eventItem.FCurrentParticipants, // ✅ 正確取人數
+                FDuration = eventItem.FEventDuration, // ✅ 正確取天數
+                FPrice = eventItem.FEventFee, // ✅ 正確取價格
+                ImageBase64 = eventImage != null
+                    ? "data:image/png;base64," + Convert.ToBase64String(eventImage.FEventImage)
+                    : defaultImage
+            };
+
+            return Ok(result);
         }
-
-        var eventImage = eventItem.TEventImages.FirstOrDefault();
-        string defaultImage = "https://your-cdn.com/default-event.jpg";
-
-        var result = new
+        catch
         {
-            eventItem.FEventId,
-            eventItem.FEventName,
-            eventItem.FEventDescription,
-            eventItem.FEventStartDate,
-            eventItem.FEventEndDate,
-            FLocation = eventItem.TEventLocations.Any()
-                ? eventItem.TEventLocations.FirstOrDefault().FLocationName
-                : "未提供",
-            FParticipant = eventItem.FCurrentParticipants, // ✅ 正確取人數
-            FDuration = eventItem.FEventDuration, // ✅ 正確取天數
-            FPrice = eventItem.FEventFee, // ✅ 正確取價格
-            ImageBase64 = eventImage != null
-                ? "data:image/png;base64," + Convert.ToBase64String(eventImage.FEventImage)
-                : defaultImage
-        };
-
-        return Ok(result);
+            return StatusCode(500);
+        }
     }
 }

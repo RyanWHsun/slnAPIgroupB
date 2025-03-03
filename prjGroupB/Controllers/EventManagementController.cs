@@ -22,7 +22,9 @@ public class EventManagementController : ControllerBase
     [HttpGet]
     public async Task<IActionResult> GetEvents()
     {
-        var events = await _context.TEvents
+        try
+        {
+            var events = await _context.TEvents
             .Select(e => new
             {
                 e.FEventId,
@@ -33,14 +35,21 @@ public class EventManagementController : ControllerBase
             })
             .ToListAsync();
 
-        return Ok(events);
+            return Ok(events);
+        }
+        catch (Exception ex)
+        {
+            return StatusCode(500, new { message = "取得活動時發生錯誤", error = ex.Message });
+        }
     }
 
     // ✅ **取得單一活動**
     [HttpGet("{id}")]
     public async Task<IActionResult> GetEvent(int id)
     {
-        var eventItem = await _context.TEvents
+        try
+        {
+            var eventItem = await _context.TEvents
             .Where(e => e.FEventId == id)
             .Select(e => new
             {
@@ -52,92 +61,111 @@ public class EventManagementController : ControllerBase
             })
             .FirstOrDefaultAsync();
 
-        if (eventItem == null)
-            return NotFound(new { message = "活動不存在" });
+            if (eventItem == null)
+                return NotFound(new { message = "活動不存在" });
 
-        return Ok(eventItem);
+            return Ok(eventItem);
+        }
+        catch (Exception ex)
+        {
+            return StatusCode(500, new { message = "取得單一活動時發生錯誤", error = ex.Message });
+        }
     }
 
     // ✅ **新增活動**
     [HttpPost]
     public async Task<IActionResult> CreateEvent([FromForm] TEventCreateRequestDTO request)
     {
-        if (request == null)
+        try
         {
-            return BadRequest(new { message = "請求內容為空" });
+            if (request == null)
+            {
+                return BadRequest(new { message = "請求內容為空" });
+            }
+
+            if (string.IsNullOrEmpty(request.Name))
+            {
+                return BadRequest(new { message = "活動名稱不可為空" });
+            }
+
+            if (request.StartDate == null || request.EndDate == null)
+            {
+                return BadRequest(new { message = "開始日期與結束日期不可為空" });
+            }
+
+            var newEvent = new TEvent
+            {
+                FEventName = request.Name,
+                FEventDescription = request.Description,
+                FEventStartDate = request.StartDate.Value,
+                FEventEndDate = request.EndDate.Value
+            };
+
+            _context.TEvents.Add(newEvent);
+            await _context.SaveChangesAsync();
+
+            if (request.Image != null)
+            {
+                await SaveEventImage(newEvent.FEventId, request.Image);
+            }
+
+            return Ok(new { message = "活動新增成功", eventId = newEvent.FEventId });
         }
-
-        if (string.IsNullOrEmpty(request.Name))
+        catch (Exception ex)
         {
-            return BadRequest(new { message = "活動名稱不可為空" });
+            return StatusCode(500, new { message = "新增活動時發生錯誤", error = ex.Message });
         }
-
-        if (request.StartDate == null || request.EndDate == null)
-        {
-            return BadRequest(new { message = "開始日期與結束日期不可為空" });
-        }
-
-        var newEvent = new TEvent
-        {
-            FEventName = request.Name,
-            FEventDescription = request.Description,
-            FEventStartDate = request.StartDate.Value,
-            FEventEndDate = request.EndDate.Value
-        };
-
-        _context.TEvents.Add(newEvent);
-        await _context.SaveChangesAsync();
-
-        if (request.Image != null)
-        {
-            await SaveEventImage(newEvent.FEventId, request.Image);
-        }
-
-        return Ok(new { message = "活動新增成功", eventId = newEvent.FEventId });
     }
 
     // ✅ **修改活動（支援圖片上傳）**
     [HttpPut("{id}")]
     public async Task<IActionResult> UpdateEvent(int id, [FromForm] TEventUpdateRequestDTO request)
     {
-        var eventItem = await _context.TEvents.FindAsync(id);
-        if (eventItem == null)
-            return NotFound(new { message = "活動不存在" });
-
-        // 只更新提供的欄位
-        if (!string.IsNullOrEmpty(request.Name))
-            eventItem.FEventName = request.Name;
-        if (!string.IsNullOrEmpty(request.Description))
-            eventItem.FEventDescription = request.Description;
-        if (request.StartDate.HasValue)
-            eventItem.FEventStartDate = request.StartDate.Value;
-        if (request.EndDate.HasValue)
-            eventItem.FEventEndDate = request.EndDate.Value;
-
-        await _context.SaveChangesAsync();
-
-        // 如果有圖片，才更新圖片
-        if (request.Image != null)
+        try
         {
-            await SaveEventImage(id, request.Image);
-        }
+            var eventItem = await _context.TEvents.FindAsync(id);
+            if (eventItem == null)
+                return NotFound(new { message = "活動不存在" });
 
-        return Ok(new { message = "活動更新成功" });
+            // 只更新提供的欄位
+            if (!string.IsNullOrEmpty(request.Name))
+                eventItem.FEventName = request.Name;
+            if (!string.IsNullOrEmpty(request.Description))
+                eventItem.FEventDescription = request.Description;
+            if (request.StartDate.HasValue)
+                eventItem.FEventStartDate = request.StartDate.Value;
+            if (request.EndDate.HasValue)
+                eventItem.FEventEndDate = request.EndDate.Value;
+
+            await _context.SaveChangesAsync();
+
+            // 如果有圖片，才更新圖片
+            if (request.Image != null)
+            {
+                await SaveEventImage(id, request.Image);
+            }
+
+            return Ok(new { message = "活動更新成功" });
+        }
+        catch (Exception ex)
+        {
+            return StatusCode(500, new { message = "更新活動時發生錯誤", error = ex.Message });
+        }
     }
 
     // ✅ **刪除活動**
     [HttpDelete("{id}")]
     public async Task<IActionResult> DeleteEvent(int id)
     {
-        var eventItem = await _context.TEvents
+        try
+        {
+            var eventItem = await _context.TEvents
             .Include(e => e.TEventImages)  // 確保一起刪除相關圖片
             .FirstOrDefaultAsync(e => e.FEventId == id);
 
-        if (eventItem == null)
-            return NotFound(new { message = "活動不存在，無法刪除" });
+            if (eventItem == null)
+                return NotFound(new { message = "活動不存在，無法刪除" });
 
-        try
-        {
             // 先刪除關聯的圖片，避免外鍵錯誤
             _context.TEventImages.RemoveRange(eventItem.TEventImages);
 
@@ -151,62 +179,79 @@ public class EventManagementController : ControllerBase
         {
             return StatusCode(500, new { message = "刪除活動時發生錯誤，可能是因為此活動被其他資料表引用", error = ex.Message });
         }
+        catch (Exception ex)
+        {
+            return StatusCode(500, new { message = "刪除活動時發生錯誤", error = ex.Message });
+        }
     }
-
 
     // ✅ **上傳活動圖片**
     [HttpPost("UploadEventImage/{eventId}")]
     public async Task<IActionResult> UploadEventImage(int eventId, IFormFile image)
     {
-        if (image == null || !image.ContentType.StartsWith("image/"))
+        try
         {
-            return BadRequest("請提供有效的圖片 (僅支援 JPG/PNG)");
+            if (image == null || !image.ContentType.StartsWith("image/"))
+            {
+                return BadRequest("請提供有效的圖片 (僅支援 JPG/PNG)");
+            }
+
+            var eventItem = await _context.TEvents
+                .Include(e => e.TEventImages)
+                .FirstOrDefaultAsync(e => e.FEventId == eventId);
+
+            if (eventItem == null)
+            {
+                return NotFound("找不到該活動");
+            }
+
+            await SaveEventImage(eventId, image);
+
+            return Ok(new { message = "圖片上傳成功" });
         }
-
-        var eventItem = await _context.TEvents
-            .Include(e => e.TEventImages)
-            .FirstOrDefaultAsync(e => e.FEventId == eventId);
-
-        if (eventItem == null)
+        catch (Exception ex)
         {
-            return NotFound("找不到該活動");
+            return StatusCode(500, new { message = "圖片上傳失敗", error = ex.Message });
         }
-
-        await SaveEventImage(eventId, image);
-
-        return Ok(new { message = "圖片上傳成功" });
     }
 
     // ✅ **封裝圖片儲存邏輯**
     private async Task SaveEventImage(int eventId, IFormFile image)
     {
-        var eventItem = await _context.TEvents
+        try
+        {
+            var eventItem = await _context.TEvents
             .Include(e => e.TEventImages)
             .FirstOrDefaultAsync(e => e.FEventId == eventId);
 
-        if (eventItem == null)
-            return;
+            if (eventItem == null)
+                return;
 
-        using var ms = new MemoryStream();
-        await image.CopyToAsync(ms);
-        var imageBytes = ms.ToArray();
+            using var ms = new MemoryStream();
+            await image.CopyToAsync(ms);
+            var imageBytes = ms.ToArray();
 
-        var existingImage = eventItem.TEventImages.FirstOrDefault();
-        if (existingImage != null)
-        {
-            existingImage.FEventImage = imageBytes;
-            existingImage.FImageType = image.ContentType;
-        }
-        else
-        {
-            eventItem.TEventImages.Add(new TEventImage
+            var existingImage = eventItem.TEventImages.FirstOrDefault();
+            if (existingImage != null)
             {
-                FEventImage = imageBytes,
-                FEventId = eventId,
-                FImageType = image.ContentType
-            });
-        }
+                existingImage.FEventImage = imageBytes;
+                existingImage.FImageType = image.ContentType;
+            }
+            else
+            {
+                eventItem.TEventImages.Add(new TEventImage
+                {
+                    FEventImage = imageBytes,
+                    FEventId = eventId,
+                    FImageType = image.ContentType
+                });
+            }
 
-        await _context.SaveChangesAsync();
+            await _context.SaveChangesAsync();
+        }
+        catch (Exception ex)
+        {
+            Console.WriteLine($"圖片儲存失敗: {ex.Message}");
+        }
     }
 }
