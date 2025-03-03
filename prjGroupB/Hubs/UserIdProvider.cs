@@ -1,8 +1,10 @@
-﻿using Microsoft.AspNetCore.SignalR;
+﻿using Microsoft.AspNetCore.Authorization;
+using Microsoft.AspNetCore.SignalR;
 using System.Security.Claims;
 
 namespace prjGroupB.Hubs
 {
+    [Authorize]
     public class UserIdProvider: IUserIdProvider
     {
         public string GetUserId(HubConnectionContext connection)
