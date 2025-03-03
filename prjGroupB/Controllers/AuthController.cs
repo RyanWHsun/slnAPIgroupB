@@ -1,4 +1,5 @@
-﻿using Microsoft.AspNetCore.Http;
+﻿using Microsoft.AspNetCore.Authorization;
+using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Identity.Data;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.IdentityModel.Tokens;
@@ -19,9 +20,34 @@ namespace prjGroupB.Controllers {
             _context = context;
         }
 
+        //檢查用 戶是否登入
+        [HttpGet("checkAuth")]
+        public IActionResult CheckAuth()
+        {
+            try
+            {
+                var token = Request.Cookies["jwt_token"];  // 取得 HTTP Only Cookie 中的 token
+
+                if (string.IsNullOrEmpty(token))
+                {
+                    return Unauthorized(new { message = "用戶未登入" });
+                }
+                else
+                {
+                    return Ok(new { message = "用戶已登入" });
+                }
+            }
+            catch
+            { return BadRequest(new { message = "錯誤操作" }); }
+            }
+
+
+        //登入
         [HttpPost("login")]
         public IActionResult Login([FromBody] UserLoginRequest request)
         {
+            try
+            { 
             // 先確保請求不為 null，並且 Email & Password 皆有輸入
             if (request == null || string.IsNullOrEmpty(request.Email) || string.IsNullOrEmpty(request.Password))
             {
@@ -48,7 +74,11 @@ namespace prjGroupB.Controllers {
                 return Unauthorized(new { Message = "登入失敗，帳號或密碼錯誤" });
             }
 
-
+            //擋住RankId == 2
+            if (user.FUserRankId == 2)
+            {
+                return Unauthorized(new { Message = "登入失敗，此帳號已註銷，請洽客服" });  
+            }
 
             //產生JWT token
             var token = GenerateJwtToken(user);
@@ -62,23 +92,55 @@ namespace prjGroupB.Controllers {
                 Expires = DateTime.UtcNow.AddHours(24)//一天後過期
             });
             return Ok(new { Message = "登入成功"});
+            }
+            catch
+            { return BadRequest(new { message = "錯誤操作" }); }
         }
 
+        // 驗證是不是管理者
+        [HttpGet("isAdmin")]
+        [Authorize]
+        public IActionResult IsAdmin() {
+            try { 
+            // FindFirstValue(): 從 User.Claims 查找 第一個符合 ClaimTypes.NameIdentifier 的 Claim，並回傳它的值。
+            // ClaimTypes.NameIdentifier 是一個 標準的 Claim 類型，表示「使用者的唯一識別碼」（通常是 UserId）。
+            var userIdValue = User.FindFirstValue(ClaimTypes.NameIdentifier);
+            int userId = int.TryParse(userIdValue, out var parsedId) ? parsedId : 0;
+            var user = _context.TUsers.FirstOrDefault(user => user.FUserId == userId);
+            
+            if(user == null || user.FUserRankId != 99) {
+                return Forbid(); // 403 Forbidden，使用者無權限
+            }
 
+            return Ok(new { isAdmin = true });
+            }
+            catch
+            { return BadRequest(new { message = "錯誤操作" }); }
+        }
+
+        //登出
         [HttpPost("logout")]
         public IActionResult LogOut()
         {
-            // 1️ 清除 HttpOnly Cookie
-            Response.Cookies.Append("jwt_token","",new CookieOptions
+            try { 
+            //1️ 清除 HttpOnly Cookie
+            Response.Cookies.Append("jwt_token", "", new CookieOptions
             {
                 HttpOnly = true,
-                Secure = false, // 本機開發時設為 false，正式環境應設為 true
-                SameSite = SameSiteMode.Lax,
+                Secure = true, // 本機開發時設為 false，正式環境應設為 true
+                SameSite = SameSiteMode.None,
                 Path = "/", // 確保 Cookie 被刪除
                 Expires = DateTime.UtcNow.AddYears(-1) // 立即讓 Cookie 過期
             });
+
+            //Response.Cookies.Delete("jwt_token");
+
+
             // 2️ 返回成功訊息
             return Ok(new { Message = "登出成功" });
+            }
+            catch
+            { return BadRequest(new { message = "錯誤操作" }); }
         }
 
 
@@ -87,6 +149,7 @@ namespace prjGroupB.Controllers {
 
         private string GenerateJwtToken(TUser user)
         {
+            try { 
             // 取得密鑰並建立簽名憑證
             var key = new SymmetricSecurityKey(Encoding.UTF8.GetBytes(_secretKey));
             var creds = new SigningCredentials(key, SecurityAlgorithms.HmacSha256);
@@ -107,6 +170,10 @@ namespace prjGroupB.Controllers {
                 signingCredentials: creds);
 
             return new JwtSecurityTokenHandler().WriteToken(token);
+            }
+            catch
+            { return BadRequest(new { message = "錯誤操作" }).ToString(); }
         }
     }
+
 }

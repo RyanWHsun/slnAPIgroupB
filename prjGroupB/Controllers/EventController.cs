@@ -2,9 +2,7 @@
 using Microsoft.EntityFrameworkCore;
 using prjGroupB.Models;
 using System.Linq;
-using Microsoft.AspNetCore.Http;
 using System.Threading.Tasks;
-using System.IO;
 using System.Collections.Generic;
 
 [ApiController]
@@ -18,19 +16,15 @@ public class EventController : ControllerBase
         _context = context;
     }
 
-    // ✅ **取得所有活動 (包含天數、人數、報名費、圖片)**
+    // ✅ **取得所有活動 (包含篩選)**
     [HttpGet]
     public async Task<ActionResult<IEnumerable<object>>> GetEvents()
     {
         try
         {
-            // 確保 `null` 時回傳 `1`
             var events = await _context.TEvents
-                .Include(e => e.TEventLocations)   // 地點
-                .Include(e => e.TEventImages)      // 圖片
-                .Include(e => e.TEventSchedules)   // 計算行程天數
-                .Include(e => e.TEventRegistrationForms)
-                    .ThenInclude(r => r.TEventPayments) // 計算報名費 (Paid)
+                .Include(e => e.TEventLocations)
+                .Include(e => e.TEventImages)
                 .Select(e => new
                 {
                     e.FEventId,
@@ -38,17 +32,12 @@ public class EventController : ControllerBase
                     e.FEventDescription,
                     e.FEventStartDate,
                     e.FEventEndDate,
-                    FDuration = e.TEventSchedules.Any()
-    ? (int?)((e.TEventSchedules.Max(s => (DateTime?)s.FEndTime).GetValueOrDefault()
-              - e.TEventSchedules.Min(s => (DateTime?)s.FStartTime).GetValueOrDefault())
-              .TotalDays + 1)
-    : 1, // 確保 `null` 時回傳 `1`
-
-                    FParticipant = e.TEventRegistrationForms.Count(), // ✅ 參加人數
-                    RegistrationFee = e.TEventRegistrationForms
-                        .SelectMany(r => r.TEventPayments)
-                        .Where(p => p.FPaymentStatus == "Paid")
-                        .Sum(p => p.FAmount), // ✅ 報名費 (Paid)
+                    FLocation = e.TEventLocations.Any()
+                        ? e.TEventLocations.FirstOrDefault().FLocationName
+                        : "未知地點",
+                    FParticipant = e.FCurrentParticipants, // ✅ 直接使用資料庫現有人數
+                    FDuration = e.FEventDuration, // ✅ 直接使用活動天數
+                    FPrice = e.FEventFee, // ✅ 直接使用活動價格
                     ImageBase64 = e.TEventImages.Any()
                         ? "data:image/png;base64," + Convert.ToBase64String(e.TEventImages.First().FEventImage)
                         : null
@@ -70,9 +59,6 @@ public class EventController : ControllerBase
         var eventItem = await _context.TEvents
             .Include(e => e.TEventLocations)
             .Include(e => e.TEventImages)
-            .Include(e => e.TEventSchedules)
-            .Include(e => e.TEventRegistrationForms)
-                .ThenInclude(r => r.TEventPayments) // 取得報名費
             .FirstOrDefaultAsync(e => e.FEventId == id);
 
         if (eventItem == null)
@@ -81,6 +67,7 @@ public class EventController : ControllerBase
         }
 
         var eventImage = eventItem.TEventImages.FirstOrDefault();
+        string defaultImage = "https://your-cdn.com/default-event.jpg";
 
         var result = new
         {
@@ -89,64 +76,17 @@ public class EventController : ControllerBase
             eventItem.FEventDescription,
             eventItem.FEventStartDate,
             eventItem.FEventEndDate,
-            Location = eventItem.TEventLocations.Any()
-                ? eventItem.TEventLocations.Select(l => l.FLocationName).FirstOrDefault()
-                : "未知地點",
-            FDuration = eventItem.TEventSchedules.Any()
-    ? (int?)((eventItem.TEventSchedules.Max(s => (DateTime?)s.FEndTime).GetValueOrDefault()
-              - eventItem.TEventSchedules.Min(s => (DateTime?)s.FStartTime).GetValueOrDefault())
-              .TotalDays + 1)
-    : 1, // 確保 `null` 時回傳 `1`
-
-            FParticipant = eventItem.TEventRegistrationForms.Count(),
-            RegistrationFee = eventItem.TEventRegistrationForms
-                .SelectMany(r => r.TEventPayments)
-                .Where(p => p.FPaymentStatus == "Paid")
-                .Sum(p => p.FAmount), // ✅ 計算報名費 (Paid)
+            FLocation = eventItem.TEventLocations.Any()
+                ? eventItem.TEventLocations.FirstOrDefault().FLocationName
+                : "未提供",
+            FParticipant = eventItem.FCurrentParticipants, // ✅ 正確取人數
+            FDuration = eventItem.FEventDuration, // ✅ 正確取天數
+            FPrice = eventItem.FEventFee, // ✅ 正確取價格
             ImageBase64 = eventImage != null
                 ? "data:image/png;base64," + Convert.ToBase64String(eventImage.FEventImage)
-                : null
+                : defaultImage
         };
 
         return Ok(result);
-    }
-
-    // ✅ **新增活動**
-    [HttpPost]
-    public async Task<IActionResult> CreateEvent([FromForm] TEventDTO eventDto, IFormFile image)
-    {
-        if (eventDto == null || string.IsNullOrEmpty(eventDto.Name))
-        {
-            return BadRequest(new { message = "活動資訊不完整" });
-        }
-
-        var newEvent = new TEvent
-        {
-            FEventName = eventDto.Name,
-            FEventDescription = eventDto.Description,
-            FEventStartDate = eventDto.StartDate,
-            FEventEndDate = eventDto.EndDate
-        };
-
-        _context.TEvents.Add(newEvent);
-        await _context.SaveChangesAsync();
-
-        if (image != null)
-        {
-            using var memoryStream = new MemoryStream();
-            await image.CopyToAsync(memoryStream);
-
-            var eventImage = new TEventImage
-            {
-                FEventId = newEvent.FEventId,
-                FEventImage = memoryStream.ToArray(),
-                FImageType = image.ContentType
-            };
-
-            _context.TEventImages.Add(eventImage);
-            await _context.SaveChangesAsync();
-        }
-
-        return Ok(new { message = "活動新增成功", eventId = newEvent.FEventId });
     }
 }
