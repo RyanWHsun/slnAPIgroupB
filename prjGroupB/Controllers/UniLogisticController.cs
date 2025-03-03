@@ -42,13 +42,15 @@ namespace prjGroupB.Controllers
         [HttpPost("openStoreMap")]
         public async Task<IActionResult> UniStoreSelect()
         {
-            var requestUrl = "https://sandbox-api.payuni.com.tw/api/logistics/ship_map";
-            var hashKey = _configuration["PayUni:HashKey"];
-            var hashIV = _configuration["PayUni:HashIV"]; 
+            try
+            {
+                var requestUrl = "https://sandbox-api.payuni.com.tw/api/logistics/ship_map";
+                var hashKey = _configuration["PayUni:HashKey"];
+                var hashIV = _configuration["PayUni:HashIV"];
 
-            var timestamp = DateTimeOffset.UtcNow.ToUnixTimeSeconds();
+                var timestamp = DateTimeOffset.UtcNow.ToUnixTimeSeconds();
 
-            var transactionDataDict = new Dictionary<string, string>
+                var transactionDataDict = new Dictionary<string, string>
             {
                 { "MerID", "S01804938" },
                 { "Timestamp", timestamp.ToString() },
@@ -61,30 +63,30 @@ namespace prjGroupB.Controllers
                 { "Tag", "2" }
             };
 
-            // 轉換為 URL Encoded 字串
-            var transactionDataEncoded = ConvertToUrlEncodedString(transactionDataDict);
-            string urlEncodedData = HttpUtility.UrlEncode(transactionDataEncoded);
-            Console.WriteLine($"transactionDataEncoded:{transactionDataEncoded}");
-            Console.WriteLine($"urlEncodedData:{urlEncodedData}");
+                // 轉換為 URL Encoded 字串
+                var transactionDataEncoded = ConvertToUrlEncodedString(transactionDataDict);
+                string urlEncodedData = HttpUtility.UrlEncode(transactionDataEncoded);
+                Console.WriteLine($"transactionDataEncoded:{transactionDataEncoded}");
+                Console.WriteLine($"urlEncodedData:{urlEncodedData}");
 
-            // 加密 EncryptInfo
-            var encryptInfo = EncryptAES256GCM(transactionDataEncoded, hashKey, hashIV);
-            Console.WriteLine($"EncryptInfo: {encryptInfo}");
+                // 加密 EncryptInfo
+                var encryptInfo = EncryptAES256GCM(transactionDataEncoded, hashKey, hashIV);
+                Console.WriteLine($"EncryptInfo: {encryptInfo}");
 
 
-            try
-            {
-                byte[] decodedBytes = Convert.FromBase64String(encryptInfo);
-                Console.WriteLine("EncryptInfo 是 Base64，應該轉換為 HEX！");
-            }
-            catch (FormatException)
-            {
-                Console.WriteLine("EncryptInfo 已經是 HEX！");
-            }
-            // 計算 HashInfo
-            var hashInfo = Hash(encryptInfo, hashKey, hashIV);
+                try
+                {
+                    byte[] decodedBytes = Convert.FromBase64String(encryptInfo);
+                    Console.WriteLine("EncryptInfo 是 Base64，應該轉換為 HEX！");
+                }
+                catch (FormatException)
+                {
+                    Console.WriteLine("EncryptInfo 已經是 HEX！");
+                }
+                // 計算 HashInfo
+                var hashInfo = Hash(encryptInfo, hashKey, hashIV);
 
-            var formData = new List<KeyValuePair<string, string>>
+                var formData = new List<KeyValuePair<string, string>>
             {
                 new KeyValuePair<string, string>("MerID", "S01804938"),
                 new KeyValuePair<string, string>("Version", "1.1"),
@@ -92,70 +94,85 @@ namespace prjGroupB.Controllers
                 new KeyValuePair<string, string>("HashInfo", hashInfo)
             };
 
-            foreach (var pair in formData)
-            {
-                Console.WriteLine($"{pair.Key}: {pair.Value}");
-            }
-
-            // 設定 Content-Type 為 application/x-www-form-urlencoded
-            var content = new FormUrlEncodedContent(formData);
-            _httpClient.DefaultRequestHeaders.Clear();
-            _httpClient.DefaultRequestHeaders.Add("User-Agent", "Mozilla/5.0 (Windows NT 10.0; Win64; x64)");
-            _httpClient.DefaultRequestHeaders.Add("Accept", "application/json");
-
-            try
-            {
-                // 發送 POST 請求
-                HttpResponseMessage response = await _httpClient.PostAsync(requestUrl, content);
-                // 顯示錯誤回應內容
-                if (!response.IsSuccessStatusCode)
+                foreach (var pair in formData)
                 {
-                    string errorBody = await response.Content.ReadAsStringAsync();
-                    Console.WriteLine($"HTTP Error {response.StatusCode}: {errorBody}");
-                    return null;
+                    Console.WriteLine($"{pair.Key}: {pair.Value}");
                 }
 
-                // 取得回應內容
-                string responseBody = await response.Content.ReadAsStringAsync();
+                // 設定 Content-Type 為 application/x-www-form-urlencoded
+                var content = new FormUrlEncodedContent(formData);
+                _httpClient.DefaultRequestHeaders.Clear();
+                _httpClient.DefaultRequestHeaders.Add("User-Agent", "Mozilla/5.0 (Windows NT 10.0; Win64; x64)");
+                _httpClient.DefaultRequestHeaders.Add("Accept", "application/json");
 
-
-                if (!response.IsSuccessStatusCode)
+                try
                 {
-                    return BadRequest(new { Status = "ERROR", Message = responseBody });
-                }
-                // 解析回傳的 HTML `<form>`，改為 JSON 格式
-                var match = Regex.Match(responseBody, @"action='(.*?)'.*?name='tempvar' value='(.*?)'.*?name='url' value='(.*?)'", RegexOptions.Singleline);
-                if (match.Success)
-                {
-                    return Ok(new
+                    // 發送 POST 請求
+                    HttpResponseMessage response = await _httpClient.PostAsync(requestUrl, content);
+                    // 顯示錯誤回應內容
+                    if (!response.IsSuccessStatusCode)
                     {
-                        redirectUrl = match.Groups[1].Value,
-                        tempvar = match.Groups[2].Value,
-                        reMapUrl = match.Groups[3].Value
-                    });
+                        string errorBody = await response.Content.ReadAsStringAsync();
+                        Console.WriteLine($"HTTP Error {response.StatusCode}: {errorBody}");
+                        return null;
+                    }
+
+                    // 取得回應內容
+                    string responseBody = await response.Content.ReadAsStringAsync();
+
+
+                    if (!response.IsSuccessStatusCode)
+                    {
+                        return BadRequest(new { Status = "ERROR", Message = responseBody });
+                    }
+                    // 解析回傳的 HTML `<form>`，改為 JSON 格式
+                    var match = Regex.Match(responseBody, @"action='(.*?)'.*?name='tempvar' value='(.*?)'.*?name='url' value='(.*?)'", RegexOptions.Singleline);
+                    if (match.Success)
+                    {
+                        return Ok(new
+                        {
+                            redirectUrl = match.Groups[1].Value,
+                            tempvar = match.Groups[2].Value,
+                            reMapUrl = match.Groups[3].Value
+                        });
+                    }
+                    return BadRequest(new { Status = "ERROR", Message = "Invalid API Response" });
                 }
-                return BadRequest(new { Status = "ERROR", Message = "Invalid API Response" });
-            }
-            catch (HttpRequestException ex)
-            {
-                Console.WriteLine($"HTTP Request Error: {ex.Message}");
-                return null;
+                catch (HttpRequestException ex)
+                {   
+                    Console.WriteLine($"HTTP Request Error: {ex.Message}");
+                    return BadRequest(new { Status = "ERROR", Message = "API 請求錯誤", Detail = ex.Message });
+                }
+                catch (Exception ex)
+                {
+                    Console.WriteLine($"Unexpected Error: {ex.Message}");
+                    return BadRequest(new { Status = "ERROR", Message = "伺服器錯誤", Detail = ex.Message });
+                }
             }
             catch (Exception ex)
             {
-                Console.WriteLine($"Unexpected Error: {ex.Message}");
-                return null;
+                Console.WriteLine($"全域錯誤: {ex.Message}");
+                return BadRequest(new { Status = "ERROR", Message = "發生未預期的錯誤", Detail = ex.Message });
             }
+
         }
 
         private string ConvertToUrlEncodedString(Dictionary<string, string> data)
         {
-            var query = HttpUtility.ParseQueryString(string.Empty);
-            foreach (var kvp in data)
+            try
             {
-                query[kvp.Key] = kvp.Value;
+                var query = HttpUtility.ParseQueryString(string.Empty);
+                foreach (var kvp in data)
+                {
+                    query[kvp.Key] = kvp.Value;
+                }
+                return query.ToString();
             }
-            return query.ToString();
+            catch (Exception ex) 
+            {
+                Console.WriteLine($"URL Encoding 失敗: {ex.Message}");
+                return string.Empty; // 返回空字串，避免程式崩潰
+            }
         }
 
         public static string EncryptAES256GCM(string transactionDataEncoded, string key, string iv)
@@ -192,23 +209,43 @@ namespace prjGroupB.Controllers
 
         private string Hash(string encryptStr, string MerKey , string MerIV)
         {
-            var hash = SHA256.Create();
-            var byteArray = hash.ComputeHash(Encoding.UTF8.GetBytes(MerKey + encryptStr + MerIV));
-            return bin2hex(byteArray).ToUpper();
+            try
+            {
+                var hash = SHA256.Create();
+                var byteArray = hash.ComputeHash(Encoding.UTF8.GetBytes(MerKey + encryptStr + MerIV));
+                return bin2hex(byteArray).ToUpper();
+            }
+            catch (Exception ex)
+            {
+                Console.WriteLine($"Hash 計算失敗: {ex.Message}");
+                return string.Empty; // 發生錯誤時返回空字串，避免程式崩潰
+            }
         }
 
 
         private static string bin2hex(byte[] result)
         {
-            StringBuilder sb = new StringBuilder(result.Length * 2);
-            for (int i = 0; i < result.Length; i++)
+            try
             {
-                int hight = ((result[i] >> 4) & 0x0f);
-                int low = result[i] & 0x0f;
-                sb.Append(hight > 9 ? (char)((hight - 10) + 'a') : (char)(hight + '0'));
-                sb.Append(low > 9 ? (char)((low - 10) + 'a') : (char)(low + '0'));
+                if (result == null || result.Length == 0)
+                {
+                    throw new ArgumentException("輸入的 byte 陣列為空，無法轉換為 hex 字串。");
+                }
+                StringBuilder sb = new StringBuilder(result.Length * 2);
+                for (int i = 0; i < result.Length; i++)
+                {
+                    int hight = ((result[i] >> 4) & 0x0f);
+                    int low = result[i] & 0x0f;
+                    sb.Append(hight > 9 ? (char)((hight - 10) + 'a') : (char)(hight + '0'));
+                    sb.Append(low > 9 ? (char)((low - 10) + 'a') : (char)(low + '0'));
+                }
+                return sb.ToString();
             }
-            return sb.ToString();
+            catch (Exception ex)
+            {
+                Console.WriteLine($"bin2hex 轉換失敗: {ex.Message}");
+                return string.Empty; // 發生錯誤時返回空字串，避免程式崩潰
+            }
         }
 
         [HttpPost("uniPay/store-info")]
@@ -331,63 +368,107 @@ namespace prjGroupB.Controllers
 
         private string DecryptAES256GCM(string encryptInfo, string? hashKey, string? hashIV)
         {
-            if (string.IsNullOrEmpty(encryptInfo))
+            try
             {
-                return encryptInfo;
+                if (string.IsNullOrEmpty(encryptInfo))
+                {
+                    return encryptInfo;
+                }
+                var encryptStrByt = Encoding.UTF8.GetString(hex2bin(encryptInfo));
+                var key = Encoding.UTF8.GetBytes(hashKey);
+                var iv = Encoding.UTF8.GetBytes(hashIV);
+                string[] spliter = { ":::" };
+                string[] data = encryptStrByt.Split(spliter, StringSplitOptions.RemoveEmptyEntries);
+                Byte[] encryptData = Convert.FromBase64String(data[0]);
+                Byte[] tagData = Convert.FromBase64String(data[1]);
+                //組成密文:密文+tag
+                Byte[] plainData = new Byte[encryptData.Length + tagData.Length];
+                Array.Copy(encryptData, plainData, encryptData.Length);
+                Array.Copy(tagData, 0, plainData, encryptData.Length, tagData.Length);
+                var result = new Byte[encryptData.Length + tagData.Length];
+                //解密設定
+                var keyParameters = new AeadParameters(new KeyParameter(key), tagData.Length * 8, iv);
+                var cipher = new GcmBlockCipher(new AesEngine());
+                cipher.Init(false, keyParameters);
+                var offset = cipher.ProcessBytes(plainData, 0, plainData.Length, result, 0);
+
+                cipher.DoFinal(result, offset);
+
+                return Encoding.UTF8.GetString(result);
             }
-            var encryptStrByt = Encoding.UTF8.GetString(hex2bin(encryptInfo));
-            var key = Encoding.UTF8.GetBytes(hashKey);
-            var iv = Encoding.UTF8.GetBytes(hashIV);
-            string[] spliter = { ":::" };
-            string[] data = encryptStrByt.Split(spliter, StringSplitOptions.RemoveEmptyEntries);
-            Byte[] encryptData = Convert.FromBase64String(data[0]);
-            Byte[] tagData = Convert.FromBase64String(data[1]);
-            //組成密文:密文+tag
-            Byte[] plainData = new Byte[encryptData.Length + tagData.Length];
-            Array.Copy(encryptData, plainData, encryptData.Length);
-            Array.Copy(tagData, 0, plainData, encryptData.Length, tagData.Length);
-            var result = new Byte[encryptData.Length + tagData.Length];
-            //解密設定
-            var keyParameters = new AeadParameters(new KeyParameter(key), tagData.Length * 8, iv);
-            var cipher = new GcmBlockCipher(new AesEngine());
-            cipher.Init(false, keyParameters);
-            var offset = cipher.ProcessBytes(plainData, 0, plainData.Length, result, 0);
-
-            cipher.DoFinal(result, offset);
-
-            return Encoding.UTF8.GetString(result);
+            catch (FormatException ex)
+            {
+                Console.WriteLine($"解密失敗: 格式錯誤 - {ex.Message}");
+                return string.Empty; // 避免因格式錯誤導致 API 崩潰
+            }
+            catch (CryptographicException ex)
+            {
+                Console.WriteLine($"解密失敗: 加密錯誤 - {ex.Message}");
+                return string.Empty; // 避免因加密問題導致程式崩潰
+            }
+            catch (Exception ex)
+            {
+                Console.WriteLine($"解密失敗: 未知錯誤 - {ex.Message}");
+                return string.Empty; // 捕捉所有其他錯誤
+            }
         }
 
         private byte[] hex2bin(string hexstring)
         {
-            hexstring = hexstring.Replace(" ", "");
-            if ((hexstring.Length % 2) != 0)
+            try
             {
-                hexstring += " ";
+                hexstring = hexstring.Replace(" ", "");
+                if ((hexstring.Length % 2) != 0)
+                {
+                    hexstring += " ";
+                }
+                byte[] returnBytes = new byte[hexstring.Length / 2];
+                for (int i = 0; i < returnBytes.Length; i++)
+                {
+                    returnBytes[i] = Convert.ToByte(hexstring.Substring(i * 2, 2), 16);
+                }
+                return returnBytes;
             }
-            byte[] returnBytes = new byte[hexstring.Length / 2];
-            for (int i = 0; i < returnBytes.Length; i++)
+            catch (FormatException ex)
             {
-                returnBytes[i] = Convert.ToByte(hexstring.Substring(i * 2, 2), 16);
+                Console.WriteLine($"Hex 轉換失敗: 格式錯誤 - {ex.Message}");
+                return new byte[0]; // 返回空陣列，避免影響 API 運作
             }
-            return returnBytes;
+            catch (OverflowException ex)
+            {
+                Console.WriteLine($"Hex 轉換失敗: 超出範圍 - {ex.Message}");
+                return new byte[0];
+            }
+            catch (Exception ex)
+            {
+                Console.WriteLine($"Hex 轉換失敗: 未知錯誤 - {ex.Message}");
+                return new byte[0];
+            }
         }
 
         //取得選擇的門市資訊(在記憶體裡)
         [HttpGet("uniPay/storeInfoCache")]
         public IActionResult GetSelectedStoreInfo()
         {
-            if (_memoryCache.TryGetValue("SelectedStoreInfo", out MapStoreInfo storeInfo))
+            try
             {
-                return Ok(new
+                if (_memoryCache.TryGetValue("SelectedStoreInfo", out MapStoreInfo storeInfo))
                 {
-                  storeInfo.storeID,
-                  storeInfo.storeName,
-                  storeInfo.address
-                });
-            }
+                    return Ok(new
+                    {
+                        storeInfo.storeID,
+                        storeInfo.storeName,
+                        storeInfo.address
+                    });
+                }
 
-            return NotFound(new { Status = "Error", Message = "尚未選擇門市資訊" });
+                return NotFound(new { Status = "Error", Message = "尚未選擇門市資訊" });
+            }
+            catch (Exception ex)
+            {
+                Console.WriteLine($"取得門市資訊失敗: {ex.Message}");
+                return StatusCode(500, new { Status = "Error", Message = "伺服器發生錯誤，請稍後再試", Detail = ex.Message });
+            }
         }
     }
 }

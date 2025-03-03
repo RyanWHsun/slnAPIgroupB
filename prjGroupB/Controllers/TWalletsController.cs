@@ -27,14 +27,25 @@ namespace prjGroupB.Controllers
         [Authorize]
         public async Task<ActionResult<IEnumerable<TWallet>>> GetTWallets()
         {
-            var userId = int.Parse(User.FindFirstValue(ClaimTypes.NameIdentifier));
-            //var userId = 3004;
-            var walletRecords = await _context.TWallets.Where(w=>w.FUserId == userId).ToListAsync();
-            if (walletRecords == null || walletRecords.Count == 0)
+            try
             {
-                return NotFound("尚無紀錄");
+                var userId = int.Parse(User.FindFirstValue(ClaimTypes.NameIdentifier));
+                //var userId = 3004;
+                var walletRecords = await _context.TWallets.Where(w => w.FUserId == userId).ToListAsync();
+                if (walletRecords == null || walletRecords.Count == 0)
+                {
+                    return NotFound("尚無紀錄");
+                }
+                return walletRecords;
             }
-            return walletRecords;
+            catch (FormatException ex)
+            {
+                return BadRequest($"無法解析使用者 ID: {ex.Message}");
+            }
+            catch (Exception ex)
+            {
+                return StatusCode(500, $"伺服器內部錯誤: {ex.Message}");
+            }
         }
 
 
