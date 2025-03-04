@@ -17,7 +17,7 @@ public class LinePayService
     private const string CHANNEL_ID = "2006949561";
     private const string CHANNEL_SECRET = "1724fe3b7e82ea6bd7cf8cfcd91f0d4a";
 
-    private const string FRONTEND_BASE_URL = "http://localhost:4200"; // 你的前端網址
+    private const string FRONTEND_BASE_URL = "http://localhost:4200/line-pay-redirect"; // 你的前端網址
 
     public LinePayService(HttpClient httpClient)
     {
