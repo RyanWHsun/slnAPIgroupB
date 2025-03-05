@@ -159,7 +159,7 @@ namespace prjGroupB.Controllers
                     {
                         case "product":
                             var productImage = context.TProductImages.FirstOrDefault(i => i.FProductId == fItemId);
-                            imageBytes = productImage?.FImage; // 如果找不到圖片，imageBytes 會保持為 null
+                            imageBytes = productImage?.FImage; 
                             break;
                         case "attractionTicket":
                             var attractionTicket = context.TAttractionTickets.FirstOrDefault(t => t.FAttractionTicketId == fItemId);

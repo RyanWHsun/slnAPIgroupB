@@ -85,8 +85,8 @@ namespace prjGroupB.Controllers
         [Authorize]
         public async Task<IActionResult> Checkout([FromBody] CheckoutRequestDTO checkoutRequest)
         {
-            Console.WriteLine("🚀 進入 Checkout API"); // ✅ 記錄 API 被呼叫
-            Console.WriteLine($"Request Body: {System.Text.Json.JsonSerializer.Serialize(checkoutRequest)}"); // ✅ 記錄請求內容
+            Console.WriteLine("🚀 進入 Checkout API"); // 記錄 API 被呼叫
+            Console.WriteLine($"Request Body: {System.Text.Json.JsonSerializer.Serialize(checkoutRequest)}"); // 記錄請求內容
             await using var transaction = await _context.Database.BeginTransactionAsync(); //加入交易機制
             try
             {
@@ -646,40 +646,7 @@ namespace prjGroupB.Controllers
                 return StatusCode(500, new { message = "更新訂單時發生錯誤", error = ex.Message });
             }
         }
-
-        //中介程式GET
-        //[HttpGet("webhook/shipOrder/{orderId}")]
-        //[EnableCors("AllowQRScan")]
-        //public async Task<IActionResult> WebhookShipOrder(int orderId, [FromServices] IHubContext<OrderHub> hubContext)
-        //{
-        //    try
-        //    {
-        //        Console.WriteLine($"Webhook 被觸發，訂單 ID: {orderId}");
-        //        using (var handler = new HttpClientHandler() { AllowAutoRedirect = true })
-        //        using (var client = new HttpClient())
-        //        {
-        //            string apiUrl = $"https://localhost:7112/api/TOrders/shipOrderByQR/{orderId}";
-
-        //            // 透過 `PUT` 請求更新訂單狀態
-        //            var response = await client.PutAsync(apiUrl, null);
-
-        //            if (response.IsSuccessStatusCode)
-        //            {
-        //                // 使用 SignalR 通知前端 (sellerOrder.component)
-        //                await hubContext.Clients.All.SendAsync("OrderUpdated", orderId);
-        //                return Ok(new { message = $"訂單 {orderId} 已成功更新！" });
-        //            }
-        //            else
-        //            {
-        //                return StatusCode((int)response.StatusCode, new { message = "訂單更新失敗", error = await response.Content.ReadAsStringAsync() });
-        //            }
-        //        }
-        //    }
-        //    catch (Exception ex)
-        //    {
-        //        return StatusCode(500, new { message = "內部錯誤", error = ex.Message });
-        //    }
-        //}
+             
 
 
         //買家更新訂單
@@ -828,7 +795,6 @@ namespace prjGroupB.Controllers
             }
             
         }
-
 
         private bool TOrderExists(int id)
         {
